@@ -3,3 +3,4 @@ requests==2.23.0
 selenium==3.141.0
 webdriver-manager==2.4.0
 python-dotenv==0.13.0
+O365==2.0.10

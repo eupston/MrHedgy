@@ -45,13 +45,19 @@ class TDAmeritrade:
     def get_stock_quote(self, symbol):
         self.start_client_session()
         quote = self.td_client.quote(symbol)
-        return quote[symbol]
 
-    def place_stock_order(self, symbol, quantity):
+        if quote:
+            return quote[symbol]
+        else:
+            return {}
+
+    def place_stock_order(self, symbol, quantity, instructions):
         """
         places an order with the given symbol. For more details visits:
         https://developer.tdameritrade.com/content/place-order-samples
-        :param symbol:
+        :param symbol: the company symbol
+        :param quantity: how many stock to place in the order
+        :param instructions: Buy or Sell
         :return:
         """
         self.start_client_session()
@@ -63,7 +69,7 @@ class TDAmeritrade:
               "orderStrategyType": "SINGLE",
               "orderLegCollection": [
                 {
-                  "instruction": "Buy",
+                  "instruction": instructions,
                   "quantity": quantity,
                   "instrument": {
                     "symbol": symbol,
@@ -81,8 +87,10 @@ class TDAmeritrade:
 
 if __name__ == '__main__':
     my_tdameritrade = TDAmeritrade()
+    quote = my_tdameritrade.get_stock_quote("LK")
+    print(quote)
     # my_tdameritrade.start_client_session()
     # td = my_tdameritrade.get_client_session()
-    order = my_tdameritrade.place_stock_order("LK", 1)
-    print(order)
+    # order = my_tdameritrade.place_stock_order("LK", 1)
+    # print(order)
 
