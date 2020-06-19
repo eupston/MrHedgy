@@ -2,3 +2,6 @@
 .idea
 # Project exclude paths
 /venv/
+o365_token.txt
+Components/o365_token.txt
+Data/transaction_data.json

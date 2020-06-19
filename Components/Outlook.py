@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv,find_dotenv
 import json
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 load_dotenv(find_dotenv())
 
@@ -43,10 +44,18 @@ class Outlook:
             received = message.received
             subject = message.subject
             body_preview = message.body_preview
+            body = message.body
+            body_parser = ""
+            soup = BeautifulSoup(body)
+            paragraphs = soup.find_all('p')
+            for paragraph in paragraphs:
+                body_parser += paragraph.text
+
             messages[id] = {
                "date_received": str(received),
                "subject": subject,
-               "body_preview": body_preview
+               "body_preview": body_preview,
+               "body": body_parser
             }
         return messages
 
@@ -54,6 +63,5 @@ class Outlook:
 
 if __name__ == '__main__':
     my_outlook = Outlook()
-    messages = my_outlook.get_email_body_messages("eupston130@hotmail.com", "Kyle Dennis", f"subject:TWK AND received>=2020-06-16")
+    messages = my_outlook.get_email_body_messages("eupston130@hotmail.com", "Kyle Dennis", f"received>=2020-06-18")
     print(json.dumps(messages, indent=4))
-    print(datetime.now())

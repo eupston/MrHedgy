@@ -85,6 +85,8 @@ class TDAmeritrade:
         if not response.status_code == 201:
             raise Exception("Order Status Not Complete. Status Code: {}".format(response.status_code))
 
+        #TODO get current positions
+
 if __name__ == '__main__':
     my_tdameritrade = TDAmeritrade()
     quote = my_tdameritrade.get_stock_quote("LK")
