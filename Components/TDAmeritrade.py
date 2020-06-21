@@ -66,20 +66,17 @@ class TDAmeritrade:
         Buys as many stock as possible with the given cash limit at market value
         :param symbol: the stock symbol
         :param cash_limit: cash limit as float
-        :return: stock order quantity placed or False if order not placed
+        :return: stock order quantity placed or raise exception if cant order
         """
         quote = self.get_stock_quote(symbol)
         ask_price = quote["askPrice"]
         stock_order_quantity = math.floor(cash_limit / ask_price)
-        if stock_order_quantity:
-            try:
-                self.place_stock_order(symbol, stock_order_quantity, "Buy")
-                return stock_order_quantity
-            except Exception as e:
-                print(e)
-                return False
-        else:
-            return False
+        try:
+            self.place_stock_order(symbol, stock_order_quantity, "Buy")
+            return stock_order_quantity
+        except Exception as e:
+            print(e)
+            raise Exception(e)
 
     def place_stock_order(self, symbol, quantity, instructions):
         """
@@ -88,7 +85,7 @@ class TDAmeritrade:
         :param symbol: the company symbol
         :param quantity: how many stock to place in the order
         :param instructions: Buy or Sell
-        :return: True or False if order was placed
+        :return: True if order was placed else raises error
         """
         self.start_client_session()
         accountId = os.getenv('TDAMERITRADE_ACCOUNT_ID')
@@ -112,8 +109,7 @@ class TDAmeritrade:
         headers = {'Authorization': 'Bearer ' + self.access_token, "Content-Type": "application/json"}
         response = requests.post(url, headers=headers, json=order)
         if not response.status_code == 201:
-            print("Order Status Not Complete. Status Code: {}".format(response.status_code))
-            return False
+            raise Exception("Order Status Not Complete. Status Code: {}".format(response.status_code))
         return True
 
     def get_all_positions(self):
@@ -140,12 +136,63 @@ class TDAmeritrade:
                 break
         return found_position
 
+    def execute_transaction_from_dict(self, transaction_dict, percent_range_execute_limit, buy_cash_limit):
+        """
+        Executes all transactions with the given dictionary Buy or Sell
+        :param transaction_dict: dictionary with symbols, found price, and market price
+        :param percent_range_execute_limit:
+        :param buy_cash_limit:
+        :return: the transaction dict that's been updated with success or not
+        """
+        self.start_client_session()
+        for symbol in transaction_dict['found_transactions'].keys():
+            transact_data = transaction_dict['found_transactions'][symbol]
+            transaction_type = transact_data['transaction_type']
+            transaction_price = transact_data['transaction_price']
+            askPrice = transact_data['tdameritrade']['askPrice']
+            bidPrice = transact_data['tdameritrade']['bidPrice']
+            if transaction_type == "Buy":
+                percent_diff_from_market = max(askPrice, transaction_price) / min(askPrice, transaction_price) - 1.0
+                if percent_diff_from_market < percent_range_execute_limit:
+                    try:
+                        amt_stock_bought = self.buy_stock_with_cash_limit(symbol, buy_cash_limit)
+                        print(f"Bought {amt_stock_bought} of {symbol} for ${askPrice} per Share ")
+                        transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = True
+                    except Exception as err:
+                        transaction_dict['found_transactions'][symbol]["transaction_failed_info"] = str(err)
+                        transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = False
+                else:
+                    transaction_dict['found_transactions'][symbol]["transaction_failed_info"] = "Market price outside Percentage execute limit"
+                    transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = False
+            if transaction_type == "Sell":
+                percent_diff_from_market = max(bidPrice, transaction_price) / min(bidPrice, transaction_price) - 1.0
+                if percent_diff_from_market < percent_range_execute_limit:
+                    found_position = self.get_single_position(symbol)
+                    if found_position:
+                        all_owned_stock_amt = found_position['longQuantity']
+                        trans_success = self.place_stock_order(symbol, all_owned_stock_amt, "Sell")
+                        print(f"Sold {all_owned_stock_amt} of {symbol} for ${bidPrice} per Share ")
+                        transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = trans_success
+                    else:
+                        transaction_dict['found_transactions'][symbol]["transaction_failed_info"] = "No Positions found to Sell"
+                        transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = False
+                else:
+                    transaction_dict['found_transactions'][symbol]["transaction_failed_info"] = "Market price outside Percentage execute limit"
+                    transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = False
+
+        return transaction_dict
+
 if __name__ == '__main__':
     my_tdameritrade = TDAmeritrade()
-    quote = my_tdameritrade.get_stock_quote("LK")
-    positions = my_tdameritrade.get_all_positions()
-    position = my_tdameritrade.get_single_position("CCL")
-    print(position)
+    # quote = my_tdameritrade.get_stock_quote("LK")
+    # positions = my_tdameritrade.get_all_positions()
+    # position = my_tdameritrade.get_single_position("CCL")
+    # print(position)
     # order = my_tdameritrade.place_stock_order("CCL", position['longQuantity'], "Sell")
     # print(order)
+    BUY_CASH_LIMIT = 100.00
+    PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT = 0.05
+    # trans_dict = my_tdameritrade.execute_transaction_from_dict(test_transaction, PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT, BUY_CASH_LIMIT)
+    # print(json.dumps(trans_dict, indent=4))
+
 

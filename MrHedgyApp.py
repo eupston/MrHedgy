@@ -9,7 +9,6 @@ from datetime import datetime
 
 load_dotenv(find_dotenv())
 
-
 def main():
     my_tdameritrade = TDAmeritrade()
     my_outlook = Outlook()
@@ -17,12 +16,10 @@ def main():
     BUY_CASH_LIMIT = 100.00
     PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT = 0.05
     current_datetime = datetime.now()
-    # current_date = str(current_datetime.date())
     current_date_list = str(current_datetime.date()).split("-")
     current_date_minus_one_day = "-".join(current_date_list[0:2]) + "-" + str(int(current_date_list[-1]) - 1)
-    current_date_minus_one_day = "2020-06-14"
+    # current_date_minus_one_day = "2020-06-14"
     ping_count = 0
-    #TODO get triggers and symbols from title
     trigger_words = ["bought", "sold", "added"]
     while True:
         with open("Data/transaction_data.json", 'r') as f:
@@ -97,35 +94,16 @@ def main():
                 print(found_transaction_dict)
                 json_transaction_data[id]["found_transactions"] = found_transaction_dict
                 json_transaction_data[id]["detected_time"] = str(datetime.now())
-                # make transaction on ameritrade
-                for symbol in json_transaction_data[id]['found_transactions'].keys():
-                    transact_data = json_transaction_data[id]['found_transactions'][symbol]
-                    transaction_type = transact_data['transaction_type']
-                    transaction_price = transact_data['transaction_price']
-                    if transaction_type == "Buy":
-                        percent_diff_from_market = 1.0 - max(quote['askPrice'], transaction_price)/min(quote['askPrice'], transaction_price)
-                        if percent_diff_from_market < PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT:
-                            amt_stock_bought = my_tdameritrade.buy_stock_with_cash_limit(symbol, BUY_CASH_LIMIT)
-                            if amt_stock_bought:
-                                print(f"Bought {amt_stock_bought} of {symbol} for ${quote['askPrice']} per Share ")
-                                json_transaction_data[id][symbol]["success_submitted_transaction"] = True
-                            else:
-                                json_transaction_data[id][symbol]["success_submitted_transaction"] = False
-                    if transaction_type == "Sell":
-                        percent_diff_from_market = 1.0 - max(quote['bidPrice'], transaction_price)/min(quote['bidPrice'], transaction_price)
-                        if percent_diff_from_market < PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT:
-                            found_position = my_tdameritrade.get_single_position(symbol)
-                            if found_position:
-                                all_owned_stock_amt = found_position['longQuantity']
-                                trans_success = my_tdameritrade.place_stock_order(symbol, all_owned_stock_amt, "Sell")
-                                print(f"Sold {all_owned_stock_amt} of {symbol} for ${quote['bidPrice']} per Share ")
-                                json_transaction_data[id][symbol]["success_submitted_transaction"] = trans_success
+                # make transaction on tdameritrade
+                print(json_transaction_data[id])
+                my_tdameritrade.execute_transaction_from_dict(json_transaction_data[id], PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT, BUY_CASH_LIMIT)
                 print("-"*40)
 
         with open("Data/transaction_data.json", 'w') as f:
             f.write(json.dumps(json_transaction_data, indent=4))
-        print("ping_count:", ping_count)
+        print("Ping: ", ping_count)
         time.sleep(time_interval_seconds)
+
 
 if __name__ == '__main__':
     main()
