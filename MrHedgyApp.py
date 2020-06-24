@@ -15,10 +15,8 @@ def main():
     time_interval_seconds = 10
     BUY_CASH_LIMIT = 100.00
     PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT = 0.05
-    current_datetime = datetime.now()
-    current_date_list = str(current_datetime.date()).split("-")
-    current_date_minus_one_day = "-".join(current_date_list[0:2]) + "-" + str(int(current_date_list[-1]) - 1)
-    # current_date_minus_one_day = "2020-06-14"
+    # current_date = "2020-06-14"
+    current_utc_datetime = my_outlook.get_current_UTC_datetime()
     ping_count = 0
     trigger_words = ["bought", "sold", "added"]
     while True:
@@ -26,7 +24,7 @@ def main():
             json_transaction_data = json.load(f)
 
             messages = my_outlook.get_email_body_messages("eupston130@hotmail.com", "Kyle Dennis",
-                                                          f"subject:TWK AND received>={current_date_minus_one_day}")
+                                                          f"subject:TWK AND received>={current_utc_datetime}")
             ping_count += 1
             ids_not_entered_yet = [id for id in messages.keys() if id not in json_transaction_data.keys()]
             for id in ids_not_entered_yet:

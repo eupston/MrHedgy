@@ -1,18 +1,27 @@
-from O365 import Account
+from O365 import Account, MSGraphProtocol
 import os
 from dotenv import load_dotenv,find_dotenv
 import json
 from datetime import datetime
 from bs4 import BeautifulSoup
+import pytz
 
 load_dotenv(find_dotenv())
 
 
 class Outlook:
 
-    def __init__(self):
-        self.credentials = (os.getenv('AZURE_APP_CLIENT_ID'),os.getenv('AZURE_APP_CLIENT_SECRET'))
-        self.account = self.account = Account(self.credentials)
+    def __init__(self, timezone=""):
+        """
+        A class for interfacing with the Outlook API
+        :param timezone: the timezone displayed on received calls from the Outlook API
+         list of timezone are here:
+         https://docs.microsoft.com/en-us/graph/api/resources/datetimetimezone?view=graph-rest-1.0
+         Defaults to current timezone
+        """
+        self.credentials = (os.getenv('AZURE_APP_CLIENT_ID'), os.getenv('AZURE_APP_CLIENT_SECRET'))
+        protocol = MSGraphProtocol(timezone=timezone)
+        self.account = self.account = Account(self.credentials, protocol=protocol)
 
     def authenticate_with_tenant_id(self):
         self.account = Account(self.credentials, auth_flow_type='credentials', tenant_id=os.getenv('AZURE_TENANT_ID'))
@@ -22,6 +31,41 @@ class Outlook:
     def authenticate_through_popup(self):
         if self.account.authenticate(scopes=['basic', 'message_all']):
             print('Authenticated!')
+
+    def get_current_UTC_datetime(self):
+        """
+        gets the current UTC datetime.
+        All requests to Outlook API are made in the UTC timezone
+        :return: the utc datetime in year:month:day hour:minute:second
+        """
+        utc_datetime = datetime.utcnow()
+        utc_converted = utc_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+        return utc_converted
+
+    def convert_datetime_to_UTC_datetime(self, year, month, day, hour, min, sec, timezone):
+        """
+        convert a given datetime to UTC datetime
+        :param year:
+        :param month:
+        :param day:
+        :param hour:
+        :param min:
+        :param sec:
+        :param timezone: the timezone string 'US/Eastern'
+        :return: the converted datetime string
+        """
+        utc = pytz.utc
+        py_timezone = pytz.timezone(timezone)
+        given_datetime = py_timezone.localize(datetime(year,month,day,hour,min,sec))
+        utc_time = given_datetime.astimezone(utc)
+        return utc_time
+
+    def get_timezones(self):
+        """
+        Gets all available timezones for the pytz module
+        :return: a list of all timezones
+        """
+        return pytz.all_timezones
 
     def get_email_body_messages(self, email_address, folder_name, query=""):
         """
@@ -59,9 +103,12 @@ class Outlook:
             }
         return messages
 
-
-
 if __name__ == '__main__':
     my_outlook = Outlook()
-    messages = my_outlook.get_email_body_messages("eupston130@hotmail.com", "Kyle Dennis", f"received>=2020-06-18")
+    current_datetime = datetime.now()
+    print(current_datetime)
+    utc_current_time = my_outlook.get_current_UTC_datetime()
+    result = my_outlook.convert_datetime_to_UTC_datetime(2002, 10, 27, 6, 0, 0, 'Pacific/Auckland')
+    messages = my_outlook.get_email_body_messages("eupston130@hotmail.com", "Kyle Dennis", f"subject:TWK AND received>={utc_current_time}")
     print(json.dumps(messages, indent=4))
+
