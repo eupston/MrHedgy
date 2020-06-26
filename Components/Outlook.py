@@ -109,6 +109,6 @@ if __name__ == '__main__':
     print(current_datetime)
     utc_current_time = my_outlook.get_current_UTC_datetime()
     result = my_outlook.convert_datetime_to_UTC_datetime(2002, 10, 27, 6, 0, 0, 'Pacific/Auckland')
-    messages = my_outlook.get_email_body_messages("eupston130@hotmail.com", "Kyle Dennis", f"subject:TWK AND received>={utc_current_time}")
+    messages = my_outlook.get_email_body_messages("eupston130@hotmail.com", "Kyle Dennis", f"subject:TWK AND received>=2020-06-23T11:49:02")
     print(json.dumps(messages, indent=4))
 
