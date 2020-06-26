@@ -158,6 +158,7 @@ class TDAmeritrade:
                         amt_stock_bought = self.buy_stock_with_cash_limit(symbol, buy_cash_limit)
                         print(f"Bought {amt_stock_bought} of {symbol} for ${askPrice} per Share ")
                         transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = True
+                        transaction_dict['found_transactions'][symbol]["amount_stock_bought"] = amt_stock_bought
                     except Exception as err:
                         transaction_dict['found_transactions'][symbol]["transaction_failed_info"] = str(err)
                         transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = False
@@ -173,6 +174,7 @@ class TDAmeritrade:
                         trans_success = self.place_stock_order(symbol, all_owned_stock_amt, "Sell")
                         print(f"Sold {all_owned_stock_amt} of {symbol} for ${bidPrice} per Share ")
                         transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = trans_success
+                        transaction_dict['found_transactions'][symbol]["amount_stock_sold"] = all_owned_stock_amt
                     else:
                         transaction_dict['found_transactions'][symbol]["transaction_failed_info"] = "No Positions found to Sell"
                         transaction_dict['found_transactions'][symbol]["success_submitted_transaction"] = False

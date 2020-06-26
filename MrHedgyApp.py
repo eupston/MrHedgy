@@ -24,7 +24,7 @@ class MrHedgyApp(QWidget):
         """
         super().__init__()
         self.setWindowTitle('Mr. Hedgy')
-        self.setGeometry(400, 200, 400, 200)
+        self.setGeometry(400, 200, 600, 400)
         self.grid = QGridLayout()
 
         self.title_label = QLabel("Mr. Hedgy")
@@ -52,23 +52,29 @@ class MrHedgyApp(QWidget):
         self.email_interval_box.setValue(10)
         self.email_interval_box.setDecimals(0)
 
+        self.stock_transactions_label = QLabel("Stock Transactions")
+        self.stock_transactions_font = QFont("Helvetica", 16, QFont.Bold)
+        self.stock_transactions_label.setFont(self.stock_transactions_font)
+        self.stock_report_list = QListWidget()
+
         self.scanning_button = QPushButton("Start Scanning")
         self.scanning_button.clicked.connect(self.start_stop_scanning_emails)
         self.scanning_button.setCheckable(True)
 
-        self.grid.addWidget(self.title_label, 0, 0)
+        self.grid.addWidget(self.title_label, 0, 0,1,0)
         self.grid.addWidget(self.buy_cash_label, 1, 0)
         self.grid.addWidget(self.buy_cash_box, 1, 1)
         self.grid.addWidget(self.percent_trans_limit_label, 2, 0)
         self.grid.addWidget(self.percent_trans_limit_box, 2, 1)
         self.grid.addWidget(self.email_interval_label, 3, 0)
         self.grid.addWidget(self.email_interval_box, 3, 1)
-        self.grid.addWidget(self.scanning_button, 4, 0)
+        self.grid.addWidget(self.stock_transactions_label, 4, 0)
+        self.grid.addWidget(self.stock_report_list, 5, 0, 1, 0)
+        self.grid.addWidget(self.scanning_button, 6, 0, 1, 0)
         self.setLayout(self.grid)
         
         self.scan_emails = False
 
-        
     def start_stop_scanning_emails(self):
         """
         Function that toggles between Starting Stopping email scanning
@@ -116,7 +122,7 @@ class MrHedgyApp(QWidget):
         time_interval_seconds = self.email_interval_box.value()
         BUY_CASH_LIMIT = self.buy_cash_box.value()
         PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT = self.percent_trans_limit_box.value() / 100
-        # current_utc_datetime = "2020-06-24"
+        # current_utc_datetime = "2020-06-22"
         current_utc_datetime = self.my_outlook.get_current_UTC_datetime()
         ping_count = 0
         trigger_words = ["bought", "sold", "added"]
@@ -194,14 +200,28 @@ class MrHedgyApp(QWidget):
                     json_transaction_data[id]["found_transactions"] = found_transaction_dict
                     json_transaction_data[id]["detected_time"] = str(datetime.now())
                     # make transaction on tdameritrade
-                    print(json_transaction_data[id])
                     self.my_tdameritrade.execute_transaction_from_dict(json_transaction_data[id], PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT, BUY_CASH_LIMIT)
+                    for stock in json_transaction_data[id]["found_transactions"].keys():
+                        stock_trans_info = json_transaction_data[id]["found_transactions"][stock]
+                        success_trans = json_transaction_data[id]["found_transactions"][stock]["success_submitted_transaction"]
+                        bidPrice = json_transaction_data[id]["found_transactions"][stock]["tdameritrade"]['bidPrice']
+                        askPrice = json_transaction_data[id]["found_transactions"][stock]["tdameritrade"]['askPrice']
+
+                        if stock_trans_info["transaction_type"] == "Sell" and success_trans:
+                            amt_stock_sold = json_transaction_data[id]["found_transactions"][stock]['amount_stock_sold']
+                            transaction_info = f"Sold {amt_stock_sold} of {symbol} for ${bidPrice} per Share"
+                            transaction_item = QListWidgetItem(transaction_info)
+                            self.stock_report_list.addItem(transaction_item)
+                        if stock_trans_info["transaction_type"] == "Buy" and success_trans:
+                            amt_stock_bought = json_transaction_data[id]["found_transactions"][stock]['amount_stock_bought']
+                            transaction_info = f"Bought {amt_stock_bought} of {symbol} for ${askPrice} per Share"
+                            transaction_item = QListWidgetItem(transaction_info)
+                            self.stock_report_list.addItem(transaction_item)
                     print("-"*40)
             with open("Data/transaction_data.json", 'w') as f:
                 f.write(json.dumps(json_transaction_data, indent=4))
             print("Ping:", ping_count, " Time: ", datetime.now())
             time.sleep(time_interval_seconds)
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
