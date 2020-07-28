@@ -1,4 +1,5 @@
 import os
+import shutil
 import math
 import json
 import tdameritrade
@@ -14,6 +15,20 @@ class TDAmeritrade:
     def __init__(self):
         self.td_client = None
         self.access_token = None
+        self.check_install_dependencies()
+
+    def check_install_dependencies(self):
+        """
+        installs all dependencies if they do not already exist
+        :return:
+        """
+        chrome_driver_dest = "/usr/local/bin/chromedriver"
+        if not os.path.exists(chrome_driver_dest):
+            script_dir = os.path.dirname(os.path.realpath(__file__))
+            dependency_path = os.path.join(script_dir, "../Dependencies")
+            chrome_driver_path = os.path.join(dependency_path, "TDAmeritrade/chromedriver")
+            shutil.copyfile(chrome_driver_path, chrome_driver_dest)
+            os.system(f"chmod +x {chrome_driver_dest}")
 
     def get_client_session(self):
         return self.td_client
@@ -23,7 +38,6 @@ class TDAmeritrade:
         self.td_client = tdameritrade.TDClient(self.access_token)
 
     def get_ameritrade_access_token(self):
-        # TODO copy chromedriver to "/usr/local/bin/chromedriver" if doesn't exist
         consumer_key=os.getenv("TDAMERITRADE_CLIENT_ID")
         uri = os.getenv("TDAMERITRADE_URI")
         response = auth.authentication(consumer_key, uri, os.getenv("TDAMERITRADE_USERNAME"), os.getenv("TDAMERITRADE_PASSWORD"))
@@ -31,6 +45,7 @@ class TDAmeritrade:
         return self.access_token
 
     def get_ameritrade_access_token_from_refresh_token(self):
+        # https://developer.tdameritrade.com/content/simple-auth-local-apps
         REFRESH_TOKEN = os.getenv('TDAMERITRADE_REFRESH_TOKEN')
         CONSUMER_KEY = os.getenv('TDAMERITRADE_CLIENT_ID')
         ACCESS_TOKEN_ENDPOINT = os.getenv('ACCESS_TOKEN_ENDPOINT')
@@ -109,6 +124,7 @@ class TDAmeritrade:
         headers = {'Authorization': 'Bearer ' + self.access_token, "Content-Type": "application/json"}
         response = requests.post(url, headers=headers, json=order)
         if not response.status_code == 201:
+            print(response.json())
             raise Exception("Order Status Not Complete. Status Code: {}".format(response.status_code))
         return True
 
@@ -117,6 +133,7 @@ class TDAmeritrade:
         Gets all positions currently in account
         :return: dict of all positions found
         """
+        self.start_client_session()
         act = self.td_client.accounts(positions=True)
         positions = act[list(act.keys())[0]]['securitiesAccount']['positions']
         return positions
@@ -192,8 +209,8 @@ if __name__ == '__main__':
     # print(position)
     # order = my_tdameritrade.place_stock_order("CCL", position['longQuantity'], "Sell")
     # print(order)
-    BUY_CASH_LIMIT = 100.00
-    PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT = 0.05
+    # BUY_CASH_LIMIT = 100.00
+    # PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT = 0.05
     # trans_dict = my_tdameritrade.execute_transaction_from_dict(test_transaction, PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT, BUY_CASH_LIMIT)
     # print(json.dumps(trans_dict, indent=4))
 
