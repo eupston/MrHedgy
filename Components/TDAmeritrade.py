@@ -165,21 +165,20 @@ class TDAmeritrade:
         movers = self.td_client.movers(index, direction, change_type)
         return movers
 
-    def get_historical_data(self, symbol, frequency=1, frequencyType="min", period="2", periodType="day"):
+    def get_historical_data(self, symbol, frequency=1, frequencyType="minute", period=1, periodType="day"):
         """
         Gets the historical data of the given stock
         :param symbol:
-        :param frequency: int of the frequency ie 1,2,3
-        :param frequencyType: the frequency interval 1m 30m 1d etc
+        :param frequency: int of the frequency ie 1, 2, 3
+        :param frequencyType: the frequency interval minute, day, month, year, ytd
         :param period: int of the period ie 1, 2, 3
         :param periodType: type of period day, month, year, ytd
         :return:
         """
         self.start_client_session()
-        kwargs = {'frequency':frequency, 'frequencyType':frequencyType, 'period':period, 'periodType':periodType}
-        his = self.td_client.history(symbol, **kwargs)
-        return his
-
+        kwargs = {'frequency': frequency, 'frequencyType': frequencyType, 'period': period, 'periodType': periodType}
+        history = self.td_client.history(symbol, **kwargs)
+        return history
 
     def execute_transaction_from_dict(self, transaction_dict, percent_range_execute_limit, buy_cash_limit):
         """
@@ -232,7 +231,7 @@ class TDAmeritrade:
 if __name__ == '__main__':
     my_tdameritrade = TDAmeritrade()
     result = my_tdameritrade.get_historical_data("KODK")
-    print(json.dumps(result, indent=4))
+    print(len(result['candles']))
     # quote = my_tdameritrade.get_stock_quote("KODK")
     # print(quote)
     # positions = my_tdameritrade.get_all_positions()
