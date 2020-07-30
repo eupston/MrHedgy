@@ -153,6 +153,34 @@ class TDAmeritrade:
                 break
         return found_position
 
+    def get_movers(self, index="$SPX.X", direction='up', change_type='percent'):
+        """
+        Get the top ten mover stock with the given percentage and direction
+        :param index: $COMPX, $DJI or $SPX.X
+        :param direction: up or down
+        :param change_type: percent or value
+        :return:
+        """
+        self.start_client_session()
+        movers = self.td_client.movers(index, direction, change_type)
+        return movers
+
+    def get_historical_data(self, symbol, frequency=1, frequencyType="min", period="2", periodType="day"):
+        """
+        Gets the historical data of the given stock
+        :param symbol:
+        :param frequency: int of the frequency ie 1,2,3
+        :param frequencyType: the frequency interval 1m 30m 1d etc
+        :param period: int of the period ie 1, 2, 3
+        :param periodType: type of period day, month, year, ytd
+        :return:
+        """
+        self.start_client_session()
+        kwargs = {'frequency':frequency, 'frequencyType':frequencyType, 'period':period, 'periodType':periodType}
+        his = self.td_client.history(symbol, **kwargs)
+        return his
+
+
     def execute_transaction_from_dict(self, transaction_dict, percent_range_execute_limit, buy_cash_limit):
         """
         Executes all transactions with the given dictionary Buy or Sell
@@ -203,7 +231,10 @@ class TDAmeritrade:
 
 if __name__ == '__main__':
     my_tdameritrade = TDAmeritrade()
-    # quote = my_tdameritrade.get_stock_quote("LK")
+    result = my_tdameritrade.get_historical_data("KODK")
+    print(json.dumps(result, indent=4))
+    # quote = my_tdameritrade.get_stock_quote("KODK")
+    # print(quote)
     # positions = my_tdameritrade.get_all_positions()
     # position = my_tdameritrade.get_single_position("CCL")
     # print(position)
