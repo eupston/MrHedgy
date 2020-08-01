@@ -11,11 +11,8 @@ import backtrader as bt
 import pandas as pd
 from Components.IEX import IEX
 
-# Create a Stratey
+# Create a Strategy
 class TestStrategy(bt.Strategy):
-    params = (
-        ('maperiod', 15),
-    )
 
     def log(self, txt, dt=None):
         ''' Logging function fot this strategy'''
@@ -85,41 +82,21 @@ class TestStrategy(bt.Strategy):
 
         buy_stock_signal = self.sma_s[-1] < self.sma_l[-1] and self.sma_s[0] > self.sma_l[0]
         sell_stock_signal = self.sma_s[0] < self.sma_l[0]
+        if not self.position:
 
-        if buy_stock_signal:
-                # BUY, BUY, BUY!!! (with all possible default parameters)
-                self.log('BUY CREATE, %.2f' % self.dataclose[0])
+            if buy_stock_signal:
+                    # BUY, BUY, BUY!!! (with all possible default parameters)
+                    self.log('BUY CREATE, %.2f' % self.dataclose[0])
+
+                    # Keep track of the created order to avoid a 2nd order
+                    self.order = self.buy()
+        else:
+            if sell_stock_signal:
+                # SELL, SELL, SELL!!! (with all possible default parameters)
+                self.log('SELL CREATE, %.2f' % self.dataclose[0])
 
                 # Keep track of the created order to avoid a 2nd order
-                self.order = self.buy()
-        if sell_stock_signal:
-            # SELL, SELL, SELL!!! (with all possible default parameters)
-            self.log('SELL CREATE, %.2f' % self.dataclose[0])
-
-            # Keep track of the created order to avoid a 2nd order
-            self.order = self.sell()
-    #
-        # # Check if we are in the market
-        # if not self.position:
-        #
-        #     # Not yet ... we MIGHT BUY if ...
-        #     if self.dataclose[0] > self.sma[0]:
-        #
-        #         # BUY, BUY, BUY!!! (with all possible default parameters)
-        #         self.log('BUY CREATE, %.2f' % self.dataclose[0])
-        #
-        #         # Keep track of the created order to avoid a 2nd order
-        #         self.order = self.buy()
-        #
-        # else:
-        #
-        #     if self.dataclose[0] < self.sma[0]:
-        #         # SELL, SELL, SELL!!! (with all possible default parameters)
-        #         self.log('SELL CREATE, %.2f' % self.dataclose[0])
-        #
-        #         # Keep track of the created order to avoid a 2nd order
-        #         self.order = self.sell()
-
+                self.order = self.sell()
 
 if __name__ == '__main__':
     # Create a cerebro entity
@@ -142,7 +119,7 @@ if __name__ == '__main__':
     cerebro.adddata(data)
 
     # Set our desired cash start
-    cerebro.broker.setcash(100000.0)
+    cerebro.broker.setcash(1000.0)
 
     # Print out the starting conditions
     print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
@@ -152,7 +129,7 @@ if __name__ == '__main__':
 
     # Print out the final result
     print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
-
+    #
     # Plot the result
     cerebro.plot()
 
