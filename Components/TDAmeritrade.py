@@ -66,7 +66,6 @@ class TDAmeritrade:
         """
         self.start_client_session()
         quote = self.td_client.quote(symbol)
-
         if quote:
             return quote[symbol]
         else:
@@ -168,9 +167,10 @@ class TDAmeritrade:
     def get_historical_data(self, symbol, frequency=1, frequencyType="minute", period=1, periodType="day"):
         """
         Gets the historical data of the given stock
+        https://developer.tdameritrade.com/price-history/apis/get/marketdata/%7Bsymbol%7D/pricehistory
         :param symbol:
-        :param frequency: int of the frequency ie 1, 2, 3
-        :param frequencyType: the frequency interval minute, day, month, year, ytd
+        :param frequency: int of the frequency ie 1, 2, 3, 4, 5, 10
+        :param frequencyType: the frequency interval minute, daily, month, weekly, monthly
         :param period: int of the period ie 1, 2, 3
         :param periodType: type of period day, month, year, ytd
         :return:
@@ -179,6 +179,22 @@ class TDAmeritrade:
         kwargs = {'frequency': frequency, 'frequencyType': frequencyType, 'period': period, 'periodType': periodType}
         history = self.td_client.history(symbol, **kwargs)
         return history
+
+    def get_historical_data_DF(self, symbol, frequency=1, frequencyType="minute", period=1, periodType="day"):
+        """
+        Gets the historical dataframe of the given stock
+        https://developer.tdameritrade.com/price-history/apis/get/marketdata/%7Bsymbol%7D/pricehistory
+        :param symbol:
+        :param frequency: int of the frequency ie 1, 2, 3, 4, 5, 10
+        :param frequencyType: the frequency interval minute, daily, month, weekly, monthly
+        :param period: int of the period ie 1, 2, 3
+        :param periodType: type of period day, month, year, ytd
+        :return:
+        """
+        self.start_client_session()
+        kwargs = {'frequency': frequency, 'frequencyType': frequencyType, 'period': period, 'periodType': periodType}
+        historyDF = self.td_client.historyDF(symbol, **kwargs)
+        return historyDF
 
     def execute_transaction_from_dict(self, transaction_dict, percent_range_execute_limit, buy_cash_limit):
         """
@@ -230,14 +246,34 @@ class TDAmeritrade:
 
 if __name__ == '__main__':
     my_tdameritrade = TDAmeritrade()
-    result = my_tdameritrade.get_historical_data("KODK")
-    print(len(result['candles']))
-    # quote = my_tdameritrade.get_stock_quote("KODK")
-    # print(quote)
+
+    data = my_tdameritrade.get_historical_data_DF("CCL", frequency=1, frequencyType="daily", period=1, periodType="month")
+    print(data)
+    # result = my_tdameritrade.get_historical_data("KODK", frequency=1, frequencyType="minute", period=10, periodType="day")
+    # print(json.dumps(result,indent=4))
+    # df = data.groupby(data['datetime'].str.split().str[0]).last().reset_index(drop=True)
+    # print(data)
+    #
+    # short_rolling = data.rolling(window=9).mean()
+    # test = short_rolling.iloc[-1]['close']
+    # print(test)
+    # print(float(test))
+    # long_rolling = data.rolling(window=20).mean()
+
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots(figsize=(16, 9))
+    #
+    # ax.plot(data.loc[:, :].index, data.loc[:, 'close'], label='Price')
+    # ax.plot(short_rolling.loc[:, :].index, short_rolling.loc[:, 'close'], label='100-days SMA')
+    # ax.plot(long_rolling.loc[:, :].index, long_rolling.loc[:, 'close'], label='100-days SMA')
+    # plt.show()
+
+    quote = my_tdameritrade.get_stock_quote("CCL")
+    print(quote)
     # positions = my_tdameritrade.get_all_positions()
     # position = my_tdameritrade.get_single_position("CCL")
     # print(position)
-    # order = my_tdameritrade.place_stock_order("CCL", position['longQuantity'], "Sell")
+    # order = my_tdameritrade.place_stock_order("INO", 1, "Sell")
     # print(order)
     # BUY_CASH_LIMIT = 100.00
     # PERCENT_RANGE_EXECUTE_TRANSACTION_LIMIT = 0.05

@@ -5,5 +5,11 @@ webdriver-manager==2.4.0
 python-dotenv==0.13.0
 O365==2.0.10
 beautifulsoup4==4.9.1
-PyQt5
+PyQt5~=5.15.0
 qdarkstyle==2.3.1
+pytz~=2020.1
+matplotlib~=3.3.0
+pandas~=1.0.5
+numpy~=1.19.1
+iexfinance==0.4.3
+backtrader==1.9.76.123
