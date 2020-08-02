@@ -246,29 +246,9 @@ class TDAmeritrade:
 
 if __name__ == '__main__':
     my_tdameritrade = TDAmeritrade()
-
-    data = my_tdameritrade.get_historical_data_DF("CCL", frequency=1, frequencyType="daily", period=1, periodType="month")
+    data = my_tdameritrade.get_historical_data_DF("CCL", frequency=1, frequencyType="minute", period=10, periodType="day")
     print(data)
-    # result = my_tdameritrade.get_historical_data("KODK", frequency=1, frequencyType="minute", period=10, periodType="day")
-    # print(json.dumps(result,indent=4))
-    # df = data.groupby(data['datetime'].str.split().str[0]).last().reset_index(drop=True)
-    # print(data)
-    #
-    # short_rolling = data.rolling(window=9).mean()
-    # test = short_rolling.iloc[-1]['close']
-    # print(test)
-    # print(float(test))
-    # long_rolling = data.rolling(window=20).mean()
-
-    # import matplotlib.pyplot as plt
-    # fig, ax = plt.subplots(figsize=(16, 9))
-    #
-    # ax.plot(data.loc[:, :].index, data.loc[:, 'close'], label='Price')
-    # ax.plot(short_rolling.loc[:, :].index, short_rolling.loc[:, 'close'], label='100-days SMA')
-    # ax.plot(long_rolling.loc[:, :].index, long_rolling.loc[:, 'close'], label='100-days SMA')
-    # plt.show()
-
-    quote = my_tdameritrade.get_stock_quote("CCL")
+    quote = my_tdameritrade.get_movers()
     print(quote)
     # positions = my_tdameritrade.get_all_positions()
     # position = my_tdameritrade.get_single_position("CCL")
