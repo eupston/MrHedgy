@@ -2,10 +2,12 @@ import os
 import shutil
 import math
 import json
+import time
 import tdameritrade
 from tdameritrade import auth
 import requests
 from dotenv import load_dotenv,find_dotenv
+import pandas as pd
 
 load_dotenv(find_dotenv())
 
@@ -16,6 +18,7 @@ class TDAmeritrade:
         self.td_client = None
         self.access_token = None
         self.check_install_dependencies()
+        self.get_ameritrade_access_token_from_refresh_token()
 
     def check_install_dependencies(self):
         """
@@ -34,7 +37,6 @@ class TDAmeritrade:
         return self.td_client
 
     def start_client_session(self):
-        self.get_ameritrade_access_token_from_refresh_token()
         self.td_client = tdameritrade.TDClient(self.access_token)
 
     def get_ameritrade_access_token(self):
@@ -74,6 +76,27 @@ class TDAmeritrade:
     def get_orders(self):
         result = self.td_client.accounts(orders=True)
         return result
+
+    def get_watch_list(self, watch_list_name):
+        """
+        Get the given watch list from think or swim account
+        :param watch_list_name:
+        :return:
+        """
+        accountId = os.getenv('TDAMERITRADE_ACCOUNT_ID')
+
+        url = f"https://api.tdameritrade.com/v1/accounts/{accountId}/watchlists"
+        headers = {'Authorization': 'Bearer ' + self.access_token, "Content-Type": "application/json"}
+        response = requests.get(url, headers=headers)
+        if not response.status_code == 200:
+            print(response.json())
+            raise Exception("Order Status Not Complete. Status Code: {}".format(response.status_code))
+        all_watch_lists = response.json()
+
+        for item in all_watch_lists:
+            if item['name'] == watch_list_name:
+                return item
+        return "Could Not Find Watch List"
 
     def buy_stock_with_cash_limit(self, symbol, cash_limit):
         """
@@ -193,8 +216,19 @@ class TDAmeritrade:
         """
         self.start_client_session()
         kwargs = {'frequency': frequency, 'frequencyType': frequencyType, 'period': period, 'periodType': periodType}
-        historyDF = self.td_client.historyDF(symbol, **kwargs)
-        return historyDF
+
+        response = requests.get(f"https://api.tdameritrade.com/v1/marketdata/{symbol}/pricehistory",
+                             headers={'Authorization': 'Bearer ' + self.access_token},
+                             params=kwargs)
+        if response.status_code == 429:
+            time.sleep(1.5)
+            self.get_historical_data_DF(symbol, frequency, frequencyType, period, periodType)
+        if not response.status_code == 200:
+            raise Exception("Could not get historical Data. Status Code: {}".format(response.status_code))
+        x = response.json()
+        df = pd.DataFrame(x['candles'])
+        df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+        return df
 
     def execute_transaction_from_dict(self, transaction_dict, percent_range_execute_limit, buy_cash_limit):
         """
@@ -245,11 +279,13 @@ class TDAmeritrade:
         return transaction_dict
 
 if __name__ == '__main__':
+    pd.set_option('display.max_rows', None)
+
     my_tdameritrade = TDAmeritrade()
-    data = my_tdameritrade.get_historical_data_DF("CCL", frequency=1, frequencyType="minute", period=10, periodType="day")
+    data = my_tdameritrade.get_historical_data_DF("AAPL", frequency=1, frequencyType="minute", period=10, periodType="day")
     print(data)
-    quote = my_tdameritrade.get_movers()
-    print(quote)
+    # watch = my_tdameritrade.get_watch_list("default")
+    # print(watch)
     # positions = my_tdameritrade.get_all_positions()
     # position = my_tdameritrade.get_single_position("CCL")
     # print(position)
