@@ -1,194 +1,134 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import os
-import datetime
-import math
-import multiprocessing
-from functools import partial
 
+import multiprocessing
 import backtrader as bt
 import json
 import pandas as pd
-from Components.IEX import IEX
+from Components.APIs.IEX import IEX
 
-# Create a Strategy
-from Components.TDAmeritrade import TDAmeritrade
-my_td_ameritrade = TDAmeritrade()
+from Components.APIs.TDAmeritrade import TDAmeritrade
+from Components.TradingStrategies import SMAStrategy
 
-class TestStrategy(bt.Strategy):
+class BackTrader:
+    """Class for Back testing Strategies"""
+    def __init__(self, strategy, buy_callback=None, sell_callback=None):
+        self.my_td_ameritrade = TDAmeritrade()
+        self.my_idex = IEX()
+        self.all_symbols = self.my_idex.supported_symbols
+        self.strategy = strategy
+        self.cash_amount = 1000.0
+        self.strategy_result = strategy
+        self.buy_callback = buy_callback
+        self.sell_callback = sell_callback
 
-    def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
-        dt = dt or self.datas[0].datetime.date(0)
-        time = self.datas[0].datetime.time()
-        print('%s, %s %s' % (dt.isoformat(), time, txt))
+    def run_strategy(self, symbol):
+        """
+        Run the strategy on the given stock symbol
+        :param symbol:
+        :return:
+        """
+        try:
+            # Create a cerebro entity
+            cerebro = bt.Cerebro()
+            # Add a strategy
+            cerebro.addstrategy(self.strategy, symbol, buy_callback=self.buy_callback, sell_callback=self.sell_callback)
 
-    def __init__(self):
-        # Keep a reference to the "close" line in the data[0] dataseries
-        self.dataclose = self.datas[0].close
+            # Create a Data Feed
+            market_data = self.create_data_feed(symbol)
+            data = bt.feeds.PandasData(dataname=market_data)
 
-        # To keep track of pending orders and buy price/commission
-        self.order = None
-        self.buyprice = None
-        self.buycomm = None
+            # Add the Data Feed to Cerebro
+            cerebro.adddata(data)
 
-        # Add a MovingAverageSimple indicator
-        self.sma_s = bt.indicators.SimpleMovingAverage(
-            self.datas[0], period=3)
+            # Set our desired cash start
+            cerebro.broker.setcash(self.cash_amount)
 
-        self.sma_l = bt.indicators.SimpleMovingAverage(
-            self.datas[0], period=15)
+            # Print out the starting conditions
+            print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+            # Run over everything
+            cerebro.run()
 
-    def notify_order(self, order):
-        if order.status in [order.Submitted, order.Accepted]:
-            # Buy/Sell order submitted/accepted to/by broker - Nothing to do
-            return
+            # Print out the final result
+            print('Final Portfolio Value: %.2f for %s' % (cerebro.broker.getvalue(), symbol))
+            # if CASH_AMOUNT != cerebro.broker.getcash():
+            #     # # Plot the result
+            #     cerebro.plot()
+            return {"symbol": symbol, "result": cerebro.broker.getvalue()}
+        except IndexError as e:
+            error = str(e)
+            return {"symbol": symbol, "result": error}
+        except KeyError as e:
+            error = str(e)
+            return {"symbol": symbol, "result": error}
+        except Exception as e:
+            error = str(e)
+            return {"symbol": symbol, "result": error}
 
-        # Check if an order has been completed
-        # Attention: broker could reject order if not enough cash
-        if order.status in [order.Completed]:
-            if order.isbuy():
-                self.log(
-                    'BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
-                    (order.executed.price,
-                     order.executed.value,
-                     order.executed.comm))
-
-                self.buyprice = order.executed.price
-                self.buycomm = order.executed.comm
-            else:  # Sell
-                self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
-                         (order.executed.price,
-                          order.executed.value,
-                          order.executed.comm))
-
-            self.bar_executed = len(self)
-
-        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log('Order Canceled/Margin/Rejected')
-
-        self.order = None
-
-    def notify_trade(self, trade):
-        if not trade.isclosed:
-            return
-
-        self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' %
-                 (trade.pnl, trade.pnlcomm))
-
-    def next(self):
-        # Simply log the closing price of the series from the reference
-        self.log('Close, %.2f' % self.dataclose[0])
-        current_position_size = self.getposition(self.datas[0]).size
-
-        # Check if an order is pending ... if yes, we cannot send a 2nd one
-        if self.order:
-            return
-
-        buy_stock_signal = self.sma_s[-1] < self.sma_l[-1] and self.sma_s[0] > self.sma_l[0]
-        sell_stock_signal = self.sma_s[0] < self.sma_l[0]
-
-        if not self.position:
-
-            if buy_stock_signal:
-                    # BUY, BUY, BUY!!! (with all possible default parameters)
-                    self.log('BUY CREATE, %.2f' % self.dataclose[0])
-                    stock_slippage_buffer_perc = 0.02
-                    current_cash = self.broker.getcash()
-                    current_stock_price = self.dataclose[0]
-                    current_stock_price_buff = current_stock_price + (current_stock_price * stock_slippage_buffer_perc)
-                    order_size = math.floor(current_cash / current_stock_price_buff) - 1
-                    order_size_small = order_size / 4
-                    self.order = self.buy(size=order_size)
+    def run_strategy_multiple_symbols(self, symbol_list=None, run_all_symbols=False):
+        """
+        Run the strategy with the given symbol list
+        :param symbol_list:
+        :param run_all_symbols:
+        :return:
+        """
+        if symbol_list:
+            symbols_to_run = symbol_list
+        elif run_all_symbols:
+            symbols_to_run = self.all_symbols
         else:
-            if sell_stock_signal:
-                # SELL, SELL, SELL!!! (with all possible default parameters)
-                self.log('SELL CREATE, %.2f' % self.dataclose[0])
-                # Keep track of the created order to avoid a 2nd order
+            raise Exception("No Symbols provided to run strategy")
+        strategy_results = {}
+        with multiprocessing.Pool(processes=5) as pool:
+            results = pool.map(self.run_strategy, symbols_to_run)
+        for result in results:
+            strategy_results[result["symbol"]] = result["result"]
+        strategy_results_sorted = {k: v for k, v in sorted(strategy_results.items(), key=lambda item: item[1] if type(item[1]) != str else 0, reverse=True)}
+        self.strategy_results = strategy_results_sorted
+        return strategy_results_sorted
 
-                self.order = self.sell(size=current_position_size)
+    def create_data_feed(self, symbol):
+        """
+        Create the data feed for the given symbol
+        :return:
+        """
 
-        i = list(range(0, len(self.datas)))
-        for (d, j) in zip(self.datas, i):
-            if len(d) == (d.buflen()-1):
-                self.order = self.close(exectype=bt.Order.Market, size=current_position_size)
-
-def main(symbol):
-    CASH_AMOUNT = 1000.0
-    try:
-        # Create a cerebro entity
-        cerebro = bt.Cerebro()
-
-        # Add a strategy
-        cerebro.addstrategy(TestStrategy)
-
-        # Create a Data Feed
-        previous_data = my_td_ameritrade.get_historical_data_DF(symbol, frequency=1, frequencyType="minute", period=10, periodType="day")
-        my_idex = IEX()
-        realtime_data = my_idex.get_historical_intraday(symbol)
+        previous_data = self.my_td_ameritrade.get_historical_data_DF(symbol, frequency=1, frequencyType="minute", period=2,
+                                                                     periodType="day")
+        realtime_data = self.my_idex.get_historical_intraday(symbol)
+        print(realtime_data)
         realtime_data = realtime_data.fillna(method='ffill')
         realtime_data["date"] = pd.to_datetime(realtime_data.date)
 
-        data = merge_realtime_data_and_previous_data(realtime_data, previous_data)
-        # data = data.resample('30Min').first()
+        data = self.merge_realtime_data_and_previous_data(realtime_data, previous_data)
+        data = data.resample('30Min').first()
         data.drop(['date'], axis=1)
-        print(data)
+        return data
 
-        data = bt.feeds.PandasData(dataname=data)
+    def merge_realtime_data_and_previous_data(self, realtime_data, previous_data):
+        """
+        Merges Realtime Data from IEX and Previous days data from TD ameritrade
+        :return: merged dataframe
+        """
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', 10)
 
-        # Add the Data Feed to Cerebro
-        cerebro.adddata(data)
+        previous_data = previous_data.rename(columns={'datetime': 'date'})
+        previous_data.set_index("date", inplace=True, drop=True)
+        merged_data = pd.concat([previous_data, realtime_data])
+        return merged_data
 
-        # Set our desired cash start
-        cerebro.broker.setcash(CASH_AMOUNT)
-
-        # Print out the starting conditions
-        print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
-        # Run over everything
-        cerebro.run()
-
-        # Print out the final result
-        print('Final Portfolio Value: %.2f for %s' % (cerebro.broker.getvalue(), symbol))
-        # if CASH_AMOUNT != cerebro.broker.getcash():
-        #     # # Plot the result
-        #     cerebro.plot()
-        return [symbol, cerebro.broker.getvalue()]
-    except IndexError as e:
-        error = str(e)
-        return [symbol, error]
-    except KeyError as e:
-        error = str(e)
-        return [symbol, error]
-    except Exception as e:
-        error = str(e)
-        return [symbol, error]
-
-def threaded_main():
-    os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = "YES"
-    my_idex = IEX()
-    # all_symbols = my_idex.supported_symbols
-    all_symbols = ["AAPL"]
-    strategy_results = {}
-    with multiprocessing.Pool() as pool:
-        results = pool.map(main, all_symbols)
-    for result in results:
-        strategy_results[result[0]] = result[1]
-    strategy_results_sorted = {k: v for k, v in sorted(strategy_results.items(), key=lambda item: item[1] if type(item[1])!=str else 0, reverse=True)}
-    print(json.dumps(strategy_results_sorted, indent=4))
-
-def merge_realtime_data_and_previous_data(realtime_data, previous_data):
-    """
-    Merges Realtime Data from IEX and Previous days data from TD ameritrade
-    :return: merged dataframe
-    """
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', 10)
-
-    previous_data = previous_data.rename(columns={'datetime': 'date'})
-    previous_data.set_index("date", inplace=True, drop=True)
-
-    merged_data = pd.concat([previous_data, realtime_data])
-    return merged_data
+    def write_results_to_json(self, json_path):
+        """
+        Writes out Results of the strategy to a json
+        :param json_path:
+        :return:
+        """
+        with open(json_path, 'w') as f:
+            f.write(json.dumps(self.strategy_results, indent=4))
 
 if __name__ == '__main__':
-    threaded_main()
+    all_symbols = ['AAPL']
+    my_back_trader = BackTrader(SMAStrategy)
+    my_back_trader.run_strategy_multiple_symbols(symbol_list=all_symbols, run_all_symbols=False)
+    my_back_trader.write_results_to_json("../Data/strategy_results.json")

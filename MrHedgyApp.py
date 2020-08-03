@@ -1,8 +1,7 @@
-import os
 import sys
 import re
-from Components.Outlook import Outlook
-from Components.TDAmeritrade import TDAmeritrade
+from Components.APIs.Outlook import Outlook
+from Components.APIs.TDAmeritrade import TDAmeritrade
 from Components.Threading import Worker
 from dotenv import load_dotenv, find_dotenv
 import time

@@ -98,22 +98,26 @@ class TDAmeritrade:
                 return item
         return "Could Not Find Watch List"
 
-    def buy_stock_with_cash_limit(self, symbol, cash_limit):
+    def buy_stock_with_cash_limit(self, symbol, cash_limit, simulation=False):
         """
         Buys as many stock as possible with the given cash limit at market value
         :param symbol: the stock symbol
         :param cash_limit: cash limit as float
+        :param simulation: True or False if transaction to be made is real or simulated
         :return: stock order quantity placed or raise exception if cant order
         """
         quote = self.get_stock_quote(symbol)
         ask_price = quote["askPrice"]
         stock_order_quantity = math.floor(cash_limit / ask_price)
-        try:
-            self.place_stock_order(symbol, stock_order_quantity, "Buy")
-            return stock_order_quantity
-        except Exception as e:
-            print(e)
-            raise Exception(e)
+        if simulation:
+            return {"ask_price": ask_price, "stock_order_quantity": stock_order_quantity}
+        else:
+            try:
+                self.place_stock_order(symbol, stock_order_quantity, "Buy")
+                return {"ask_price": ask_price, "stock_order_quantity": stock_order_quantity}
+            except Exception as e:
+                print(e)
+                raise Exception(e)
 
     def place_stock_order(self, symbol, quantity, instructions):
         """

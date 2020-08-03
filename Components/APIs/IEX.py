@@ -5,8 +5,6 @@ from iexfinance.refdata import get_symbols
 import os
 from dotenv import load_dotenv, find_dotenv
 
-from Components.TDAmeritrade import TDAmeritrade
-
 load_dotenv(find_dotenv())
 
 class IEX:
@@ -55,17 +53,11 @@ if __name__ == '__main__':
     date = datetime(2020, 7, 29)
     data = my_idex.get_historical_intraday("SQ", date=date)
 
-    my_tdameritrade = TDAmeritrade()
-    data2 = my_tdameritrade.get_historical_data_DF("SQ", frequency=1, frequencyType="minute", period=10, periodType="day")
-    data2 = data2.rename(columns={'datetime': 'date'})
-    data2.set_index("date", inplace=True, drop=True)
-
-    data = pd.concat([data2, data])
     # data["date"] = pd.to_datetime(data.date)
     # data.set_index("date")
 
-    resample = data.resample('30Min').first()
-    print(resample)
+    # data = data.resample('30Min').first()
+    # print(data)
 
     # symbols = my_idex.get_all_symbols()
     # print(list(symbols['symbol']))
