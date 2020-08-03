@@ -96,7 +96,6 @@ class BackTrader:
         previous_data = self.my_td_ameritrade.get_historical_data_DF(symbol, frequency=1, frequencyType="minute", period=2,
                                                                      periodType="day")
         realtime_data = self.my_idex.get_historical_intraday(symbol)
-        print(realtime_data)
         realtime_data = realtime_data.fillna(method='ffill')
         realtime_data["date"] = pd.to_datetime(realtime_data.date)
 

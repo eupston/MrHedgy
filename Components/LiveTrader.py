@@ -1,9 +1,15 @@
 import datetime
+import json
+import multiprocessing
+import time
+
+from pytz import timezone
+from datetime import datetime as dt
 
 from Components.APIs.IEX import IEX
 from Components.APIs.TDAmeritrade import TDAmeritrade
 from Components.BackTrader import BackTrader
-from Components.TradingStrategies import SMAStrategy
+from Components.TradingStrategies import SMAStrategy, TradingStrategies
 
 
 class LiveTrader:
@@ -21,8 +27,32 @@ class LiveTrader:
         """
         stock_gappers = self.get_premarket_stock_gappers()
         print(stock_gappers)
-        my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
-        my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
+        my_trading_strategies = TradingStrategies()
+        cycle_count = 0
+        while True:
+            print(cycle_count)
+            tz = timezone('EST')
+            now = dt.now(tz)
+            stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
+            if now < stock_market_opening_time:
+                time.sleep(1)
+                cycle_count += 1
+                continue
+            with open("../Data/transaction_data.json", 'r') as f:
+                all_transaction_data = json.load(f)
+            for stock in stock_gappers:
+                result = my_trading_strategies.simple_moving_average_daily_strategy(stock)
+                symbol_transactions = all_transaction_data.setdefault(result["symbol"], [])
+                symbol_transactions.append(result["transaction_data"])
+
+            with open("../Data/transaction_data.json", 'w') as f:
+                f.write(json.dumps(all_transaction_data, indent=4))
+            cycle_count += 1
+            time.sleep(1)
+
+        #TODO implement backtrader solution
+        # my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
+        # my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
 
     def buy_callback(self, symbol):
         """
