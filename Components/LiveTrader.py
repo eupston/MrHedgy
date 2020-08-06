@@ -25,41 +25,43 @@ class LiveTrader:
         Run the loaded strategy on all the stock market gappers
         :return:
         """
-        stock_gappers = self.get_premarket_stock_gappers()
-        print(stock_gappers)
-        my_trading_strategies = TradingStrategies()
-        cycle_count = 0
-        while True:
-            print(cycle_count)
-            tz = timezone('EST')
-            now = dt.now(tz)
-            stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
-            if now < stock_market_opening_time:
-                time.sleep(1)
-                cycle_count += 1
-                continue
-            with open("../Data/transaction_data.json", 'r') as f:
-                all_transaction_data = json.load(f)
-            for stock in stock_gappers:
-                result = my_trading_strategies.simple_moving_average_daily_strategy(stock)
-                symbol_transactions = all_transaction_data.setdefault(result["symbol"], [])
-                symbol_transactions.append(result["transaction_data"])
+        # stock_gappers = self.get_premarket_stock_gappers()
+        stock_gappers = ['SQ', 'MARA', 'AVCT']
 
-            with open("../Data/transaction_data.json", 'w') as f:
-                f.write(json.dumps(all_transaction_data, indent=4))
-            cycle_count += 1
-            time.sleep(1)
+        # my_trading_strategies = TradingStrategies()
+        # cycle_count = 0
+        # while True:
+        #     print(cycle_count)
+        #     tz = timezone('EST')
+        #     now = dt.now(tz)
+        #     stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
+        #     if now > stock_market_opening_time:
+        #         time.sleep(1)
+        #         cycle_count += 1
+        #         continue
+        #     with open("../Data/transaction_data_08_06.json", 'r') as f:
+        #         all_transaction_data = json.load(f)
+        #     for stock in stock_gappers:
+        #         result = my_trading_strategies.simple_moving_average_daily_strategy(stock)
+        #         symbol_transactions = all_transaction_data.setdefault(result["symbol"], [])
+        #         if result['transaction_data']:
+        #             symbol_transactions.append(result["transaction_data"])
+        #
+        #     with open("../Data/transaction_data_08_06.json", 'w') as f:
+        #         f.write(json.dumps(all_transaction_data, indent=4))
+        #     cycle_count += 1
+        #     time.sleep(1)
 
         #TODO implement backtrader solution
-        # my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
-        # my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
+        my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
+        my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
 
     def buy_callback(self, symbol):
         """
         The buy callback to for loaded strategy
         :return:
         """
-        print("MY BUYYY CALLBACK for " + symbol)
+        print("MY BUY CALLBACK for " + symbol)
         # stocks_bought = self.td_ameritrade.buy_stock_with_cash_limit(symbol, cash_limit=self.cash_limit, simulation=True)
 
     def sell_callback(self, symbol):
@@ -77,6 +79,7 @@ class LiveTrader:
         stock_gappers = []
         today = datetime.datetime.utcnow().date()
         yesterday = today - datetime.timedelta(days=1)
+
         watch_list = self.td_ameritrade.get_watch_list(str(yesterday))
 
         for stock in watch_list['watchlistItems']:

@@ -13,3 +13,7 @@ pandas~=1.0.5
 numpy~=1.19.1
 iexfinance==0.4.3
 backtrader==1.9.76.123
+git+https://github.com/blampe/IbPy.git
+git+https://github.com/alpacahq/alpaca-backtrader-api@shared_websocket_streamer
+alpha_vantage==2.2.0
+

@@ -31,7 +31,7 @@ class TradingStrategies:
             current_day_minute_interval = self.my_iex.get_historical_intraday(symbol)
             # current_day_minute_interval = pd.concat([previous_day_minute_interval, current_day_minute_interval])
             current_day_minute_interval = current_day_minute_interval.fillna(method='ffill')
-
+            print(current_day_minute_interval)
             short_rolling = current_day_minute_interval.rolling(window=short_interval).mean()
             long_rolling = current_day_minute_interval.rolling(window=long_interval).mean()
 
@@ -52,19 +52,25 @@ class TradingStrategies:
                 transaction_data[str(datetime.now(tz))] = {
                     "bought": quote['askPrice']
                 }
+                print(f"BOUGHT {symbol} at {quote['askPrice']}")
             if sell_stock_signal:
                 quote = self.my_tdameritrade.get_stock_quote(symbol)
                 transaction_data[str(datetime.now(tz))] = {
                     "sold": quote['bidPrice']
                 }
+                print(f"SOLD {symbol} at {quote['bidPrice']}")
             return {"symbol": symbol, "transaction_data":transaction_data }
         except Exception as e:
             return {"symbol": symbol, "transaction_data": {str(datetime.now(tz)): str(e)} }
 
 
 class SMAStrategy(bt.Strategy):
-    params = (('symbol', None ),('buy_callback', None), ('sell_callback', None), )
-
+    params = (
+        ('symbol', None ),
+        ('buy_callback', None),
+        ('sell_callback', None),
+        ('live', False),
+    )
 
     def log(self, txt, dt=None):
         ''' Logging function fot this strategy'''
@@ -76,9 +82,6 @@ class SMAStrategy(bt.Strategy):
         """
         executes the simple moving average daily strategy
         """
-        print("yoooo")
-        # self.symbol = self.params.symbols
-
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
 
@@ -93,7 +96,11 @@ class SMAStrategy(bt.Strategy):
 
         self.sma_l = bt.indicators.SimpleMovingAverage(
             self.datas[0], period=15)
-        # print("self.symbol ",self.symbol,flush=True)
+
+        self.symbol = self.params.symbol
+        self.buy_callback = self.params.buy_callback
+        self.sell_callback = self.params.sell_callback
+        self.live = self.params.live
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -112,11 +119,14 @@ class SMAStrategy(bt.Strategy):
 
                 self.buyprice = order.executed.price
                 self.buycomm = order.executed.comm
+                self.buy_callback(self.symbol)
             else:  # Sell
                 self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
                          (order.executed.price,
                           order.executed.value,
                           order.executed.comm))
+                self.sell_callback(self.symbol)
+
             self.bar_executed = len(self)
 
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -135,8 +145,6 @@ class SMAStrategy(bt.Strategy):
         # Simply log the closing price of the series from the reference
         self.log('Close, %.2f' % self.dataclose[0])
         current_position_size = self.getposition(self.datas[0]).size
-        # self.params.sell_callback(self.symbol)
-
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
             return

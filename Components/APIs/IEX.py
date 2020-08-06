@@ -51,14 +51,21 @@ if __name__ == '__main__':
     pd.set_option('display.width', 150)
     my_idex = IEX()
     date = datetime(2020, 7, 29)
-    data = my_idex.get_historical_intraday("SQ", date=date)
+    import time
+    from datetime import datetime as dt
+    from pytz import timezone
 
-    # data["date"] = pd.to_datetime(data.date)
-    # data.set_index("date")
-
-    # data = data.resample('30Min').first()
-    # print(data)
-
-    # symbols = my_idex.get_all_symbols()
-    # print(list(symbols['symbol']))
-    # print(list(data['numberOfTrades']))
+    cycle_count = 0
+    while True:
+        tz = timezone('EST')
+        now = dt.now(tz)
+        stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
+        if now > stock_market_opening_time:
+            data = my_idex.get_historical_intraday("SQ")
+            print(data)
+            with open(r'../../Data/iex_pandas_sq_data.txt', 'a') as file:
+                file.write(f'\n------------- Current Time is {str(datetime.now())} --------------\n')
+            data.to_csv(r'../../Data/iex_pandas_sq_data.txt', header=None, index=None, sep=' ', mode='a')
+        cycle_count += 1
+        print("cycle_count", cycle_count)
+        time.sleep(10)

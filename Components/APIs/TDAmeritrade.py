@@ -92,11 +92,10 @@ class TDAmeritrade:
             print(response.json())
             raise Exception("Order Status Not Complete. Status Code: {}".format(response.status_code))
         all_watch_lists = response.json()
-
         for item in all_watch_lists:
             if item['name'] == watch_list_name:
                 return item
-        return "Could Not Find Watch List"
+        raise Exception("Could Not Find Watch List")
 
     def buy_stock_with_cash_limit(self, symbol, cash_limit, simulation=False):
         """
