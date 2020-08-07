@@ -7,7 +7,7 @@ from Components.TradingStrategies import *
 
 class BackTrader:
     """Class for Back testing Strategies"""
-    def __init__(self, strategy, buy_callback=None, sell_callback=None):
+    def __init__(self, strategy, buy_callback=None, sell_callback=None, live_trading=False):
         self.my_td_ameritrade = TDAmeritrade()
         self.my_idex = IEX()
         self.my_alpha_vantage = AlphaVantage()
@@ -18,6 +18,7 @@ class BackTrader:
         self.buy_callback = buy_callback
         self.sell_callback = sell_callback
         self.resample_amt = "30Min"
+        self.live_trading = live_trading
 
     def run_strategy(self, symbol):
         """
@@ -29,10 +30,14 @@ class BackTrader:
             # Create a cerebro entity
             cerebro = bt.Cerebro()
             # Add a strategy
-            cerebro.addstrategy(self.strategy, symbol=symbol, buy_callback=self.buy_callback, sell_callback=self.sell_callback)
+            cerebro.addstrategy(self.strategy,
+                                symbol=symbol,
+                                buy_callback=self.buy_callback,
+                                sell_callback=self.sell_callback,
+                                live_trading=self.live_trading)
 
             # Create a Data Feed
-            market_data = self.create_data_feed_iex_td_ameritrade(symbol)
+            market_data = self.create_data_feed_alpha_vantage(symbol)
             data = bt.feeds.PandasData(dataname=market_data)
 
             # Add the Data Feed to Cerebro

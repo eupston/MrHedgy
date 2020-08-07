@@ -69,7 +69,7 @@ class SMAStrategy(bt.Strategy):
         ('symbol', None ),
         ('buy_callback', None),
         ('sell_callback', None),
-        ('live', False),
+        ('live_trading', False),
     )
 
     def log(self, txt, dt=None):
@@ -100,9 +100,13 @@ class SMAStrategy(bt.Strategy):
         self.symbol = self.params.symbol
         self.buy_callback = self.params.buy_callback
         self.sell_callback = self.params.sell_callback
-        self.live = self.params.live
+        self.live_trading = self.params.live_trading
 
     def notify_order(self, order):
+        dt = self.datas[0].datetime.date(0)
+        time = self.datas[0].datetime.time()
+        date_time = str(dt) + " " + str(time)
+
         if order.status in [order.Submitted, order.Accepted]:
             # Buy/Sell order submitted/accepted to/by broker - Nothing to do
             return
@@ -119,13 +123,16 @@ class SMAStrategy(bt.Strategy):
 
                 self.buyprice = order.executed.price
                 self.buycomm = order.executed.comm
-                self.buy_callback(self.symbol)
+
+                self.buy_callback(self.symbol, date_time)
             else:  # Sell
                 self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
                          (order.executed.price,
                           order.executed.value,
                           order.executed.comm))
-                self.sell_callback(self.symbol)
+                dt = self.datas[0].datetime.date(0)
+                time = self.datas[0].datetime.time()
+                self.sell_callback(self.symbol, date_time)
 
             self.bar_executed = len(self)
 

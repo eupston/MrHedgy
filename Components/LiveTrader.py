@@ -2,6 +2,7 @@ import datetime
 import json
 import multiprocessing
 import time
+import os
 
 from pytz import timezone
 from datetime import datetime as dt
@@ -19,6 +20,9 @@ class LiveTrader:
         self.iex = IEX()
         self.strategy = strategy
         self.cash_limit = 100
+        self.stock_order_times_bought = []
+        self.stock_order_times_sold = []
+        self.query_market_seconds = 300
 
     def run_strategy_on_live_market(self):
         """
@@ -52,24 +56,65 @@ class LiveTrader:
         #     cycle_count += 1
         #     time.sleep(1)
 
-        #TODO implement backtrader solution
-        my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
-        my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
+        while True:
+            my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
+            my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
+            time.sleep(self.query_market_seconds)
 
-    def buy_callback(self, symbol):
+    def buy_callback(self, symbol, order_datetime):
         """
         The buy callback to for loaded strategy
         :return:
         """
-        print("MY BUY CALLBACK for " + symbol)
-        # stocks_bought = self.td_ameritrade.buy_stock_with_cash_limit(symbol, cash_limit=self.cash_limit, simulation=True)
+        tz = timezone('EST')
+        now = dt.now(tz)
+        print("MY BUY CALLBACK for " + symbol + " " + order_datetime)
+        stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
+        if now > stock_market_opening_time and order_datetime not in self.stock_order_times_bought:
+            self.stock_order_times_bought.append(order_datetime)
+            quote = self.td_ameritrade.get_stock_quote(symbol)
+            ask_price = quote["askPrice"]
+            transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
+            if not os.path.exists(transaction_json_path):
+                with open(transaction_json_path, 'w') as outfile:
+                    json.dump({}, outfile)
+            with open(transaction_json_path, 'r') as f:
+                transaction_data = json.load(f)
+            transaction_data[str(now)] = {
+                "Symbol": symbol,
+                "Bought": ask_price,
+                "order_time": order_datetime
 
-    def sell_callback(self, symbol):
+            }
+            with open(transaction_json_path, 'w') as f:
+                f.write(json.dumps(transaction_data, indent=4))
+
+    def sell_callback(self, symbol, order_datetime):
         """
         The sell callback to for loaded strategy
         :return:
         """
-        print("MY SELL CALLBACK for " + symbol)
+        tz = timezone('EST')
+        now = dt.now(tz)
+        print("MY SELL CALLBACK for " + symbol + " " + order_datetime)
+        stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
+        if now > stock_market_opening_time and order_datetime not in self.stock_order_times_sold:
+            self.stock_order_times_sold.append(order_datetime)
+            quote = self.td_ameritrade.get_stock_quote(symbol)
+            bid_price = quote["bidPrice"]
+            transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
+            if not os.path.exists(transaction_json_path):
+                with open(transaction_json_path, 'w') as outfile:
+                    json.dump({}, outfile)
+            with open(transaction_json_path, 'r') as f:
+                transaction_data = json.load(f)
+            transaction_data[str(now)] = {
+                "Symbol": symbol,
+                "Sold": bid_price,
+                "order_time": order_datetime
+            }
+            with open(transaction_json_path, 'w') as f:
+                f.write(json.dumps(transaction_data, indent=4))
 
     def get_premarket_stock_gappers(self):
         """
