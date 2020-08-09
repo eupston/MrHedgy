@@ -8,6 +8,7 @@ from tdameritrade import auth
 import requests
 from dotenv import load_dotenv,find_dotenv
 import pandas as pd
+from datetime import timedelta, datetime
 
 load_dotenv(find_dotenv())
 
@@ -206,31 +207,37 @@ class TDAmeritrade:
         history = self.td_client.history(symbol, **kwargs)
         return history
 
-    def get_historical_data_DF(self, symbol, frequency=1, frequencyType="minute", period=1, periodType="day"):
+    def get_historical_data_DF(self, symbol, minute_frequency=1, look_back_days=1):
         """
-        Gets the historical dataframe of the given stock
+        Gets the historical dataframe of the given stock.
+        Note minute data can only go back a maximum of 30 days
         https://developer.tdameritrade.com/price-history/apis/get/marketdata/%7Bsymbol%7D/pricehistory
         :param symbol:
-        :param frequency: int of the frequency ie 1, 2, 3, 4, 5, 10
-        :param frequencyType: the frequency interval minute, daily, month, weekly, monthly
-        :param period: int of the period ie 1, 2, 3
-        :param periodType: type of period day, month, year, ytd
+        :param minute_frequency: int of the minute frequency ie 1, 5, 15, 30
+        :param look_back_days: int in number of day to lookback from today
         :return:
         """
         self.start_client_session()
-        kwargs = {'frequency': frequency, 'frequencyType': frequencyType, 'period': period, 'periodType': periodType}
+        today = datetime.now()
+        today_x_days_ago = today - timedelta(days=look_back_days)
+        start_date_lookback_day = str(int(round(today_x_days_ago.timestamp() * 1000)))
+
+        kwargs = {'frequency': minute_frequency, 'startDate': start_date_lookback_day}
 
         response = requests.get(f"https://api.tdameritrade.com/v1/marketdata/{symbol}/pricehistory",
                              headers={'Authorization': 'Bearer ' + self.access_token},
                              params=kwargs)
         if response.status_code == 429:
             time.sleep(1.5)
-            self.get_historical_data_DF(symbol, frequency, frequencyType, period, periodType)
+            self.get_historical_data_DF(symbol, minute_frequency, look_back_days)
         if not response.status_code == 200:
             raise Exception("Could not get historical Data. Status Code: {}".format(response.status_code))
         x = response.json()
+
         df = pd.DataFrame(x['candles'])
         df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+        df = df.rename(columns={'datetime': 'date'})
+        df.set_index("date", inplace=True, drop=True)
         return df
 
     def execute_transaction_from_dict(self, transaction_dict, percent_range_execute_limit, buy_cash_limit):
@@ -285,7 +292,7 @@ if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
 
     my_tdameritrade = TDAmeritrade()
-    data = my_tdameritrade.get_historical_data_DF("AAPL", frequency=1, frequencyType="minute", period=10, periodType="day")
+    data = my_tdameritrade.get_historical_data_DF("AAPL", minute_frequency=1, look_back_days=30)
     print(data)
     # watch = my_tdameritrade.get_watch_list("default")
     # print(watch)

@@ -32,6 +32,8 @@ class IEX:
         """
 
         dataframe = get_historical_intraday(symbol, date=date, output_format='pandas', token=self.token)
+        dataframe = dataframe.fillna(method='ffill')
+        dataframe["date"] = pd.to_datetime(dataframe.date)
         return dataframe
 
     def get_all_symbols(self):

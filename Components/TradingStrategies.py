@@ -123,19 +123,17 @@ class SMAStrategy(bt.Strategy):
 
                 self.buyprice = order.executed.price
                 self.buycomm = order.executed.comm
-
-                self.buy_callback(self.symbol, date_time)
+                if self.buy_callback:
+                    self.buy_callback(self.symbol, date_time)
             else:  # Sell
                 self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
                          (order.executed.price,
                           order.executed.value,
                           order.executed.comm))
-                dt = self.datas[0].datetime.date(0)
-                time = self.datas[0].datetime.time()
-                self.sell_callback(self.symbol, date_time)
+                if self.sell_callback:
+                    self.sell_callback(self.symbol, date_time)
 
             self.bar_executed = len(self)
-
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.log('Order Canceled/Margin/Rejected')
 
@@ -165,7 +163,7 @@ class SMAStrategy(bt.Strategy):
                     # BUY, BUY, BUY!!! (with all possible default parameters)
                     self.log('BUY CREATE, %.2f' % self.dataclose[0])
                     stock_slippage_buffer_perc = 0.02
-                    current_cash = self.broker.getcash()
+                    current_cash = self.broker.getvalue()
                     current_stock_price = self.dataclose[0]
                     current_stock_price_buff = current_stock_price + (current_stock_price * stock_slippage_buffer_perc)
                     order_size = math.floor(current_cash / current_stock_price_buff) - 1
@@ -175,7 +173,6 @@ class SMAStrategy(bt.Strategy):
                 # SELL, SELL, SELL!!! (with all possible default parameters)
                 self.log('SELL CREATE, %.2f' % self.dataclose[0])
                 # Keep track of the created order to avoid a 2nd order
-
                 self.order = self.sell(size=current_position_size)
 
         i = list(range(0, len(self.datas)))

@@ -1,6 +1,5 @@
 import datetime
 import json
-import multiprocessing
 import time
 import os
 
@@ -10,12 +9,12 @@ from datetime import datetime as dt
 from Components.APIs.IEX import IEX
 from Components.APIs.TDAmeritrade import TDAmeritrade
 from Components.BackTrader import BackTrader
-from Components.TradingStrategies import SMAStrategy, TradingStrategies
+from Components.TradingStrategies import SMAStrategy
 
 
 class LiveTrader:
 
-    def __init__(self,strategy):
+    def __init__(self, strategy):
         self.td_ameritrade = TDAmeritrade()
         self.iex = IEX()
         self.strategy = strategy
@@ -30,36 +29,16 @@ class LiveTrader:
         :return:
         """
         # stock_gappers = self.get_premarket_stock_gappers()
-        stock_gappers = ['SQ', 'MARA', 'AVCT']
-
-        # my_trading_strategies = TradingStrategies()
-        # cycle_count = 0
-        # while True:
-        #     print(cycle_count)
-        #     tz = timezone('EST')
-        #     now = dt.now(tz)
-        #     stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
-        #     if now > stock_market_opening_time:
-        #         time.sleep(1)
-        #         cycle_count += 1
-        #         continue
-        #     with open("../Data/transaction_data_08_06.json", 'r') as f:
-        #         all_transaction_data = json.load(f)
-        #     for stock in stock_gappers:
-        #         result = my_trading_strategies.simple_moving_average_daily_strategy(stock)
-        #         symbol_transactions = all_transaction_data.setdefault(result["symbol"], [])
-        #         if result['transaction_data']:
-        #             symbol_transactions.append(result["transaction_data"])
-        #
-        #     with open("../Data/transaction_data_08_06.json", 'w') as f:
-        #         f.write(json.dumps(all_transaction_data, indent=4))
-        #     cycle_count += 1
-        #     time.sleep(1)
-
+        stock_gappers = ['SQ', 'MARA', 'AVCT', 'AAPL']
+        cycle_count = 0
         while True:
-            my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
-            my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
+            try:
+                my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
+                my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
+            except Exception as e:
+                print(str(e))
             time.sleep(self.query_market_seconds)
+            cycle_count += 1
 
     def buy_callback(self, symbol, order_datetime):
         """
@@ -70,21 +49,21 @@ class LiveTrader:
         now = dt.now(tz)
         print("MY BUY CALLBACK for " + symbol + " " + order_datetime)
         stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
-        if now > stock_market_opening_time and order_datetime not in self.stock_order_times_bought:
-            self.stock_order_times_bought.append(order_datetime)
+        transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
+        if not os.path.exists(transaction_json_path):
+            with open(transaction_json_path, 'w') as outfile:
+                json.dump({}, outfile)
+        with open(transaction_json_path, 'r') as f:
+            transaction_data = json.load(f)
+        transaction_data.setdefault(symbol, {})
+
+        if now > stock_market_opening_time and order_datetime not in transaction_data[symbol].keys():
             quote = self.td_ameritrade.get_stock_quote(symbol)
             ask_price = quote["askPrice"]
-            transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
-            if not os.path.exists(transaction_json_path):
-                with open(transaction_json_path, 'w') as outfile:
-                    json.dump({}, outfile)
-            with open(transaction_json_path, 'r') as f:
-                transaction_data = json.load(f)
-            transaction_data[str(now)] = {
-                "Symbol": symbol,
-                "Bought": ask_price,
-                "order_time": order_datetime
 
+            transaction_data[symbol][order_datetime] = {
+                "Bought": ask_price,
+                "eastern_time": str(now)
             }
             with open(transaction_json_path, 'w') as f:
                 f.write(json.dumps(transaction_data, indent=4))
@@ -97,21 +76,21 @@ class LiveTrader:
         tz = timezone('EST')
         now = dt.now(tz)
         print("MY SELL CALLBACK for " + symbol + " " + order_datetime)
+        transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
+        if not os.path.exists(transaction_json_path):
+            with open(transaction_json_path, 'w') as outfile:
+                json.dump({}, outfile)
+        with open(transaction_json_path, 'r') as f:
+            transaction_data = json.load(f)
+        transaction_data.setdefault(symbol, {})
+
         stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
-        if now > stock_market_opening_time and order_datetime not in self.stock_order_times_sold:
-            self.stock_order_times_sold.append(order_datetime)
+        if now > stock_market_opening_time and order_datetime not in transaction_data[symbol].keys():
             quote = self.td_ameritrade.get_stock_quote(symbol)
             bid_price = quote["bidPrice"]
-            transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
-            if not os.path.exists(transaction_json_path):
-                with open(transaction_json_path, 'w') as outfile:
-                    json.dump({}, outfile)
-            with open(transaction_json_path, 'r') as f:
-                transaction_data = json.load(f)
-            transaction_data[str(now)] = {
-                "Symbol": symbol,
+            transaction_data[symbol][order_datetime] = {
                 "Sold": bid_price,
-                "order_time": order_datetime
+                "eastern_time": str(now)
             }
             with open(transaction_json_path, 'w') as f:
                 f.write(json.dumps(transaction_data, indent=4))
