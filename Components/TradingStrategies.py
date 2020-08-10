@@ -92,15 +92,20 @@ class SMAStrategy(bt.Strategy):
 
         # Add a MovingAverageSimple indicator
         self.sma_s = bt.indicators.SimpleMovingAverage(
-            self.datas[0], period=3)
+            self.datas[0], period=5)
 
         self.sma_l = bt.indicators.SimpleMovingAverage(
-            self.datas[0], period=15)
+            self.datas[0], period=21)
 
         self.symbol = self.params.symbol
         self.buy_callback = self.params.buy_callback
         self.sell_callback = self.params.sell_callback
         self.live_trading = self.params.live_trading
+
+        self.current_percent_increase = None
+        self.bought_stock_price = None
+        self.momentum_loss_threshold_percent = 0.02
+        self.momentum_percentage_peak = 0
 
     def notify_order(self, order):
         dt = self.datas[0].datetime.date(0)
@@ -156,9 +161,20 @@ class SMAStrategy(bt.Strategy):
 
         buy_stock_signal = self.sma_s[-1] < self.sma_l[-1] and self.sma_s[0] > self.sma_l[0]
         sell_stock_signal = self.sma_s[0] < self.sma_l[0]
+        sell_stock_signal = False
+        sell_stock_signal_two = False
+        if self.bought_stock_price:
+            # calculate percentage increase
+            new_stock_price = self.dataclose[0]
+            self.current_percent_increase = ((new_stock_price - self.bought_stock_price) / self.bought_stock_price) * 100
+            if self.current_percent_increase > self.momentum_percentage_peak:
+                self.momentum_percentage_peak = self.current_percent_increase
+            # calculate Momentum loss if any
+            current_momentum_loss_threshold = self.momentum_percentage_peak * self.momentum_loss_threshold_percent
+            if self.momentum_percentage_peak - current_momentum_loss_threshold <  self.current_percent_increase:
+                sell_stock_signal_two = True
 
         if not self.position:
-
             if buy_stock_signal:
                     # BUY, BUY, BUY!!! (with all possible default parameters)
                     self.log('BUY CREATE, %.2f' % self.dataclose[0])
@@ -168,8 +184,14 @@ class SMAStrategy(bt.Strategy):
                     current_stock_price_buff = current_stock_price + (current_stock_price * stock_slippage_buffer_perc)
                     order_size = math.floor(current_cash / current_stock_price_buff) - 1
                     self.order = self.buy(size=order_size)
+                    self.bought_stock_price = self.dataclose[0]
         else:
-            if sell_stock_signal:
+            if sell_stock_signal_two:
+                # SELL, SELL, SELL!!! (with all possible default parameters)
+                self.log('SELL CREATE, %.2f' % self.dataclose[0])
+                # Keep track of the created order to avoid a 2nd order
+                self.order = self.sell(size=current_position_size)
+            elif sell_stock_signal:
                 # SELL, SELL, SELL!!! (with all possible default parameters)
                 self.log('SELL CREATE, %.2f' % self.dataclose[0])
                 # Keep track of the created order to avoid a 2nd order

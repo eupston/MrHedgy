@@ -18,15 +18,16 @@ class BackTrader:
         self.strategy_result = strategy
         self.buy_callback = buy_callback
         self.sell_callback = sell_callback
-        self.resample_amt = None
+        self.resample_amt = "30T"
         self.live_trading = live_trading
         self.use_historical_data = True
         self.use_live_intraday_data = False
         today = datetime.datetime.utcnow().date()
         three_days_ago = today - datetime.timedelta(days=3)
         self.clip_date_from = str(three_days_ago)
-        self.look_back_days = 30
+        self.look_back_days = 60
         self.minute_frequency = 30
+        self.show_plot = False
 
     def run_strategy(self, symbol):
         """
@@ -65,7 +66,8 @@ class BackTrader:
 
             # Print out the final result
             print('Final Portfolio Value: %.2f for %s' % (cerebro.broker.getvalue(), symbol))
-
+            if self.show_plot:
+                cerebro.plot()
             return {"symbol": symbol, "result": cerebro.broker.getvalue()}
         except Exception as e:
             error = str(e)
@@ -95,16 +97,19 @@ class BackTrader:
 
     def create_live_data_feed(self, symbol):
         """
-        Creates a data feed from alpha vantage api
+        Creates a live data feed from alpha vantage api
         :return:
         """
         data = self.my_alpha_vantage.get_intraday(symbol, clip_date_from=self.clip_date_from)
+
         data = data.resample(self.resample_amt).first()
+        print(symbol, data)
+
         return data
 
     def create_historical_data_feed(self, symbol):
         """
-        Create the data feed for the given symbol from iex and td ameritrade data
+        Create the historical data feed for the given symbol from  td ameritrade data
         :return:
         """
         data = self.my_td_ameritrade.get_historical_data_DF(symbol, minute_frequency=self.minute_frequency, look_back_days=self.look_back_days)
@@ -123,7 +128,10 @@ if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 150)
-    all_symbols = ['SQ', "AAPL", "SPY", "GOOG", "TSLA", "FB", "MSFT", "SONN"]
+    all_symbols = ['SQ', "AAPL", "SPY", "GOOG", "TSLA", "FB", "MSFT", "SONN", 'MARA', 'AVCT']
     my_back_trader = BackTrader(SMAStrategy)
+    # all_symbols = my_back_trader.my_idex.supported_symbols
     my_back_trader.run_strategy_multiple_symbols(symbol_list=all_symbols, run_all_symbols=False)
+    # my_back_trader.show_plot = True
+    # my_back_trader.run_strategy(symbol="SONN")
     my_back_trader.write_results_to_json("../Data/strategy_results.json")
