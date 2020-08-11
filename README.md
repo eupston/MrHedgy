@@ -1,2 +1,2 @@
 # MrHedgy
-An Application for that triggering Stock trades with TDAmeritrade with emails
+An Application for Algorithmic Trading for Stocks in TDAmeritrade 

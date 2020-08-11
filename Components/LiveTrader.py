@@ -28,17 +28,21 @@ class LiveTrader:
         Run the loaded strategy on all the stock market gappers
         :return:
         """
-        # stock_gappers = self.get_premarket_stock_gappers()
-        stock_gappers = ['SQ', 'MARA', 'AVCT', 'AAPL']
+        # stock_gappers = self.get_premarket_stock_gappers(watch_list_name="2020-08-11")
+        stock_gappers = ['PFNX', 'EQ', 'PECK', 'PLX', 'FBIO']
+        print(stock_gappers)
         cycle_count = 0
         while True:
             try:
                 my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
+                my_back_trader.use_live_intraday_data = True
                 my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
+                my_back_trader.write_results_to_json("../Data/strategy_results_2020-08-11.json")
             except Exception as e:
                 print(str(e))
             time.sleep(self.query_market_seconds)
             cycle_count += 1
+            print("cycle_count", cycle_count)
 
     def buy_callback(self, symbol, order_datetime):
         """
@@ -95,16 +99,17 @@ class LiveTrader:
             with open(transaction_json_path, 'w') as f:
                 f.write(json.dumps(transaction_data, indent=4))
 
-    def get_premarket_stock_gappers(self):
+    def get_premarket_stock_gappers(self, watch_list_name=None):
         """
         gets all the current premarket stock gappers
         :return: A list of the stock symbols
         """
         stock_gappers = []
-        today = datetime.datetime.utcnow().date()
-        yesterday = today - datetime.timedelta(days=1)
-
-        watch_list = self.td_ameritrade.get_watch_list(str(yesterday))
+        if not watch_list_name:
+            today = datetime.datetime.utcnow().date()
+            yesterday = today - datetime.timedelta(days=1)
+            watch_list_name = str(yesterday)
+        watch_list = self.td_ameritrade.get_watch_list(watch_list_name)
 
         for stock in watch_list['watchlistItems']:
             stock_gappers.append(stock['instrument']['symbol'])

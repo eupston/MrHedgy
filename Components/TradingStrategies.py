@@ -171,7 +171,7 @@ class SMAStrategy(bt.Strategy):
                 self.momentum_percentage_peak = self.current_percent_increase
             # calculate Momentum loss if any
             current_momentum_loss_threshold = self.momentum_percentage_peak * self.momentum_loss_threshold_percent
-            if self.momentum_percentage_peak - current_momentum_loss_threshold <  self.current_percent_increase:
+            if self.momentum_percentage_peak - current_momentum_loss_threshold < self.current_percent_increase:
                 sell_stock_signal_two = True
 
         if not self.position:

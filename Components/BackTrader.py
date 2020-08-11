@@ -26,7 +26,7 @@ class BackTrader:
         three_days_ago = today - datetime.timedelta(days=3)
         self.clip_date_from = str(three_days_ago)
         self.look_back_days = 60
-        self.minute_frequency = 30
+        self.minute_frequency = 15
         self.show_plot = False
 
     def run_strategy(self, symbol):
@@ -129,6 +129,8 @@ if __name__ == '__main__':
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 150)
     all_symbols = ['SQ', "AAPL", "SPY", "GOOG", "TSLA", "FB", "MSFT", "SONN", 'MARA', 'AVCT']
+    all_symbols = ['TTOO', 'LPCN', 'HJLI', 'HOTH', 'MARA']
+
     my_back_trader = BackTrader(SMAStrategy)
     # all_symbols = my_back_trader.my_idex.supported_symbols
     my_back_trader.run_strategy_multiple_symbols(symbol_list=all_symbols, run_all_symbols=False)
