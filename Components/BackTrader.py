@@ -5,6 +5,18 @@ import multiprocessing
 from Components.APIs.AlphaVantage import AlphaVantage
 from Components.TradingStrategies import *
 import datetime
+import logging
+import sys
+
+logging.basicConfig(filename=f"../logs/{__name__}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 class BackTrader:
     """Class for Back testing Strategies"""
@@ -60,17 +72,18 @@ class BackTrader:
             cerebro.broker.setcash(self.cash_amount)
 
             # Print out the starting conditions
-            print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+            logger.info('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
             # Run over everything
             cerebro.run()
 
             # Print out the final result
-            print('Final Portfolio Value: %.2f for %s' % (cerebro.broker.getvalue(), symbol))
+            logger.info('Final Portfolio Value: %.2f for %s' % (cerebro.broker.getvalue(), symbol))
             if self.show_plot:
                 cerebro.plot()
             return {"symbol": symbol, "result": cerebro.broker.getvalue()}
         except Exception as e:
             error = str(e)
+            logger.exception(e)
             return {"symbol": symbol, "result": error}
 
     def run_strategy_multiple_symbols(self, symbol_list=None, run_all_symbols=False):
@@ -87,7 +100,7 @@ class BackTrader:
         else:
             raise Exception("No Symbols provided to run strategy")
         strategy_results = {}
-        with multiprocessing.Pool(processes=5) as pool:
+        with multiprocessing.Pool() as pool:
             results = pool.map(self.run_strategy, symbols_to_run)
         for result in results:
             strategy_results[result["symbol"]] = result["result"]
@@ -129,7 +142,7 @@ if __name__ == '__main__':
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 150)
     all_symbols = ['SQ', "AAPL", "SPY", "GOOG", "TSLA", "FB", "MSFT", "SONN", 'MARA', 'AVCT']
-    all_symbols = ['TTOO', 'LPCN', 'HJLI', 'HOTH', 'MARA']
+    all_symbols = ['RMED', 'SNSS', 'PECK', 'PEIX', 'FBIO']
 
     my_back_trader = BackTrader(SMAStrategy)
     # all_symbols = my_back_trader.my_idex.supported_symbols

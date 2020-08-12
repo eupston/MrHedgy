@@ -32,9 +32,13 @@ class IEX:
         """
 
         dataframe = get_historical_intraday(symbol, date=date, output_format='pandas', token=self.token)
-        dataframe = dataframe.fillna(method='ffill')
-        dataframe["date"] = pd.to_datetime(dataframe.date)
-        return dataframe
+        try:
+            dataframe = dataframe.fillna(method='ffill')
+            dataframe["date"] = pd.to_datetime(dataframe.date)
+            return dataframe
+        except Exception as e:
+            print(str(e))
+            raise Exception(str(e))
 
     def get_all_symbols(self):
         """
@@ -62,12 +66,18 @@ if __name__ == '__main__':
         tz = timezone('EST')
         now = dt.now(tz)
         stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
-        if now > stock_market_opening_time:
-            data = my_idex.get_historical_intraday("SQ") #TODO check no attribute date
-            print(data)
-            with open(r'../../Data/iex_pandas_sq_data_2020_08_12.txt', 'a') as file:
-                file.write(f'\n------------- Current Time is {str(datetime.now())} --------------\n')
-            data.to_csv(r'../../Data/iex_pandas_sq_data_2020_08_12.txt', header=None, index=None, sep=' ', mode='a')
+        if now < stock_market_opening_time:
+            try:
+                data = my_idex.get_historical_intraday("SQ") #TODO check no attribute date
+                print(data)
+                with open(r'../../Data/iex_pandas_sq_data_2020_08_12.txt', 'a') as file:
+                    file.write(f'\n------------- Current Time is {str(datetime.now())} --------------\n')
+                data.to_csv(r'../../Data/iex_pandas_sq_data_2020_08_12.txt', header=None, index=None, sep=' ', mode='a')
+            except Exception as e:
+                print(str(e))
+                with open(r'../../Data/iex_pandas_sq_data_2020_08_12.txt', 'a') as file:
+                    file.write(f'\n------------- Current Time is {str(datetime.now())} --------------\n')
+                    file.write(str(e))
         cycle_count += 1
         print("cycle_count", cycle_count)
-        time.sleep(10)
+        # time.sleep(10)

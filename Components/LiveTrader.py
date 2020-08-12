@@ -11,6 +11,20 @@ from Components.APIs.TDAmeritrade import TDAmeritrade
 from Components.BackTrader import BackTrader
 from Components.TradingStrategies import SMAStrategy
 
+#TODO add logging through whole app
+#TODO Create stock gap scanner
+import logging
+import sys
+
+logging.basicConfig(filename=f"../logs/{__name__}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 class LiveTrader:
 
@@ -21,7 +35,7 @@ class LiveTrader:
         self.cash_limit = 100
         self.stock_order_times_bought = []
         self.stock_order_times_sold = []
-        self.query_market_seconds = 300
+        self.query_market_seconds = 2
 
     def run_strategy_on_live_market(self):
         """
@@ -29,20 +43,21 @@ class LiveTrader:
         :return:
         """
         # stock_gappers = self.get_premarket_stock_gappers(watch_list_name="2020-08-11")
-        stock_gappers = ['PFNX', 'EQ', 'PECK', 'PLX', 'FBIO']
-        print(stock_gappers)
+        stock_gappers = ['RMED', 'SNSS', 'PECK', 'PEIX', 'FBIO', "AAPL", "SQ", "CCL", "NLCH"]
+        logger.info(stock_gappers)
         cycle_count = 0
+        now = dt.now()
         while True:
             try:
-                my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback)
-                my_back_trader.use_live_intraday_data = True
+                my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback, live_trading=True)
+                my_back_trader.use_live_intraday_data = False
                 my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
-                my_back_trader.write_results_to_json("../Data/strategy_results_2020-08-11.json")
+                my_back_trader.write_results_to_json(f"../Data/{str(now.date())}.json")
             except Exception as e:
-                print(str(e))
+                logger.exception(e)
             time.sleep(self.query_market_seconds)
             cycle_count += 1
-            print("cycle_count", cycle_count)
+            logger.info(f"cycle_count {cycle_count}")
 
     def buy_callback(self, symbol, order_datetime):
         """
@@ -51,8 +66,6 @@ class LiveTrader:
         """
         tz = timezone('EST')
         now = dt.now(tz)
-        print("MY BUY CALLBACK for " + symbol + " " + order_datetime)
-        stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
         transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
         if not os.path.exists(transaction_json_path):
             with open(transaction_json_path, 'w') as outfile:
@@ -60,14 +73,17 @@ class LiveTrader:
         with open(transaction_json_path, 'r') as f:
             transaction_data = json.load(f)
         transaction_data.setdefault(symbol, {})
-
-        if now > stock_market_opening_time and order_datetime not in transaction_data[symbol].keys():
+        stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0).replace(tzinfo=None)
+        order_datetime_obj = dt.strptime(order_datetime, '%Y-%m-%d %H:%M:%S')
+        if order_datetime_obj < stock_market_opening_time and order_datetime not in transaction_data[symbol].keys():
             quote = self.td_ameritrade.get_stock_quote(symbol)
             ask_price = quote["askPrice"]
-
+            logger.info(f"BUY CALLBACK: Order Place for {symbol} order datetime is {order_datetime} for ${ask_price}")
             transaction_data[symbol][order_datetime] = {
-                "Bought": ask_price,
-                "eastern_time": str(now)
+                "transaction_type": "Bought",
+                "price": ask_price,
+                "transaction_time_EST": str(now),
+                "transaction_time_NZST": str(dt.now())
             }
             with open(transaction_json_path, 'w') as f:
                 f.write(json.dumps(transaction_data, indent=4))
@@ -79,7 +95,6 @@ class LiveTrader:
         """
         tz = timezone('EST')
         now = dt.now(tz)
-        print("MY SELL CALLBACK for " + symbol + " " + order_datetime)
         transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
         if not os.path.exists(transaction_json_path):
             with open(transaction_json_path, 'w') as outfile:
@@ -88,13 +103,18 @@ class LiveTrader:
             transaction_data = json.load(f)
         transaction_data.setdefault(symbol, {})
 
-        stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
-        if now > stock_market_opening_time and order_datetime not in transaction_data[symbol].keys():
+        stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0).replace(tzinfo=None)
+        order_datetime_obj = dt.strptime(order_datetime, '%Y-%m-%d %H:%M:%S')
+        if order_datetime_obj < stock_market_opening_time.replace(tzinfo=None) and order_datetime not in transaction_data[symbol].keys():
+
             quote = self.td_ameritrade.get_stock_quote(symbol)
             bid_price = quote["bidPrice"]
+            logger.info(f"SELL CALLBACK: Order Place for {symbol} order datetime is {order_datetime} for ${bid_price}")
             transaction_data[symbol][order_datetime] = {
-                "Sold": bid_price,
-                "eastern_time": str(now)
+                "transaction_type": "Sold",
+                "price": bid_price,
+                "transaction_time_EST": str(now),
+                "transaction_time_NZST": str(dt.now())
             }
             with open(transaction_json_path, 'w') as f:
                 f.write(json.dumps(transaction_data, indent=4))

@@ -5,3 +5,4 @@
 o365_token.txt
 Components/o365_token.txt
 Data/transaction_data.json
+*.log

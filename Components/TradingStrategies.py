@@ -7,6 +7,19 @@ import pandas as pd
 import backtrader as bt
 import math
 from pytz import timezone
+import logging
+import sys
+
+logging.basicConfig(filename=f"../logs/{__name__}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 class TradingStrategies:
 
@@ -39,10 +52,6 @@ class TradingStrategies:
             long_sma_previous = float(long_rolling.iloc[-2]['close'])
             short_sma_current = float(short_rolling.iloc[-1]['close'])
             long_sma_current = float(long_rolling.iloc[-1]['close'])
-            print("short_sma_previous ", short_sma_previous)
-            print("long_sma_previous ", long_sma_previous)
-            print("short_sma_current ", short_sma_current)
-            print("long_sma_current ", long_sma_current)
             buy_stock_signal = short_sma_previous < long_sma_previous and short_sma_current > long_sma_current
             sell_stock_signal = short_sma_current < long_sma_current
             # buy_stock_signal = True
@@ -76,7 +85,7 @@ class SMAStrategy(bt.Strategy):
         ''' Logging function fot this strategy'''
         dt = dt or self.datas[0].datetime.date(0)
         time = self.datas[0].datetime.time()
-        print('%s, %s %s' % (dt.isoformat(), time, txt))
+        print('%s %s, %s %s' % (self.symbol, dt.isoformat(), time, txt))
 
     def __init__(self):
         """
@@ -196,11 +205,11 @@ class SMAStrategy(bt.Strategy):
                 self.log('SELL CREATE, %.2f' % self.dataclose[0])
                 # Keep track of the created order to avoid a 2nd order
                 self.order = self.sell(size=current_position_size)
-
-        i = list(range(0, len(self.datas)))
-        for (d, j) in zip(self.datas, i):
-            if len(d) == (d.buflen()-1):
-                self.order = self.close(exectype=bt.Order.Market, size=current_position_size)
+        if not self.live_trading:
+            i = list(range(0, len(self.datas)))
+            for (d, j) in zip(self.datas, i):
+                if len(d) == (d.buflen()-1):
+                    self.order = self.close(exectype=bt.Order.Market, size=current_position_size)
 
 if __name__ == '__main__':
     pd.set_option('display.max_rows', 500)
