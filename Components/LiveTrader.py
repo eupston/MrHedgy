@@ -11,8 +11,6 @@ from Components.APIs.TDAmeritrade import TDAmeritrade
 from Components.BackTrader import BackTrader
 from Components.TradingStrategies import SMAStrategy
 
-#TODO add logging through whole app
-#TODO Create stock gap scanner
 import logging
 import sys
 
@@ -26,6 +24,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+#TODO Create stock gap scanner
 class LiveTrader:
 
     def __init__(self, strategy):
@@ -35,22 +34,22 @@ class LiveTrader:
         self.cash_limit = 100
         self.stock_order_times_bought = []
         self.stock_order_times_sold = []
-        self.query_market_seconds = 2
+        self.query_market_seconds = 300
 
     def run_strategy_on_live_market(self):
         """
         Run the loaded strategy on all the stock market gappers
         :return:
         """
-        # stock_gappers = self.get_premarket_stock_gappers(watch_list_name="2020-08-11")
-        stock_gappers = ['RMED', 'SNSS', 'PECK', 'PEIX', 'FBIO', "AAPL", "SQ", "CCL", "NLCH"]
+        # stock_gappers = self.get_premarket_stock_gappers(watch_list_name="2020-08-12")
+        stock_gappers =['XSPA', 'IBIO', 'RIOT', 'IPDN', 'SQ']
         logger.info(stock_gappers)
         cycle_count = 0
         now = dt.now()
         while True:
             try:
                 my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback, live_trading=True)
-                my_back_trader.use_live_intraday_data = False
+                my_back_trader.use_live_intraday_data = True
                 my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
                 my_back_trader.write_results_to_json(f"../Data/{str(now.date())}.json")
             except Exception as e:
@@ -75,7 +74,7 @@ class LiveTrader:
         transaction_data.setdefault(symbol, {})
         stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0).replace(tzinfo=None)
         order_datetime_obj = dt.strptime(order_datetime, '%Y-%m-%d %H:%M:%S')
-        if order_datetime_obj < stock_market_opening_time and order_datetime not in transaction_data[symbol].keys():
+        if order_datetime_obj > stock_market_opening_time and order_datetime not in transaction_data[symbol].keys():
             quote = self.td_ameritrade.get_stock_quote(symbol)
             ask_price = quote["askPrice"]
             logger.info(f"BUY CALLBACK: Order Place for {symbol} order datetime is {order_datetime} for ${ask_price}")
@@ -105,7 +104,7 @@ class LiveTrader:
 
         stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0).replace(tzinfo=None)
         order_datetime_obj = dt.strptime(order_datetime, '%Y-%m-%d %H:%M:%S')
-        if order_datetime_obj < stock_market_opening_time.replace(tzinfo=None) and order_datetime not in transaction_data[symbol].keys():
+        if order_datetime_obj > stock_market_opening_time.replace(tzinfo=None) and order_datetime not in transaction_data[symbol].keys():
 
             quote = self.td_ameritrade.get_stock_quote(symbol)
             bid_price = quote["bidPrice"]

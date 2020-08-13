@@ -38,7 +38,7 @@ class IEX:
             return dataframe
         except Exception as e:
             print(str(e))
-            raise Exception(str(e))
+            raise Exception(e)
 
     def get_all_symbols(self):
         """
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0)
         if now < stock_market_opening_time:
             try:
-                data = my_idex.get_historical_intraday("SQ") #TODO check no attribute date
+                data = my_idex.get_historical_intraday("SQ")
                 print(data)
                 with open(r'../../Data/iex_pandas_sq_data_2020_08_12.txt', 'a') as file:
                     file.write(f'\n------------- Current Time is {str(datetime.now())} --------------\n')
