@@ -30,7 +30,6 @@ class IEX:
         list or DataFrame
             Intraday pricing data for specified symbol on given date
         """
-
         dataframe = get_historical_intraday(symbol, date=date, output_format='pandas', token=self.token)
         try:
             dataframe = dataframe.fillna(method='ffill')

@@ -207,7 +207,7 @@ class TDAmeritrade:
         history = self.td_client.history(symbol, **kwargs)
         return history
 
-    def get_historical_data_DF(self, symbol, minute_frequency=1, look_back_days=1):
+    def get_historical_data_DF(self, symbol, minute_frequency=1, look_back_days=2):
         """
         Gets the historical dataframe of the given stock.
         Note minute data can only go back a maximum of 30 days

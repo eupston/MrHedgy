@@ -31,16 +31,16 @@ class BackTrader:
         self.strategy_result = strategy
         self.buy_callback = buy_callback
         self.sell_callback = sell_callback
-        self.resample_amt = "30T"
+        self.resample_amt = "15T"
         self.live_trading = live_trading
-        self.use_historical_data = True
-        self.use_live_intraday_data = False
         today = datetime.datetime.utcnow().date()
         three_days_ago = today - datetime.timedelta(days=3)
         self.clip_date_from = str(three_days_ago)
         self.look_back_days = 60
         self.minute_frequency = 15
         self.show_plot = False
+        self.data_feed_source = "iex"
+        self.strategy_results = None
 
     def run_strategy(self, symbol):
         """
@@ -59,11 +59,11 @@ class BackTrader:
                                 live_trading=self.live_trading)
 
             # Create a Data Feed
-            if self.use_live_intraday_data:
+            if self.live_trading:
                 market_data = self.create_live_data_feed(symbol)
-            elif self.use_historical_data:
+            else:
                 market_data = self.create_historical_data_feed(symbol)
-            print(market_data)
+            logger.info(market_data)
             data = bt.feeds.PandasData(dataname=market_data)
 
             # Add the Data Feed to Cerebro
@@ -111,14 +111,20 @@ class BackTrader:
 
     def create_live_data_feed(self, symbol):
         """
-        Creates a live data feed from alpha vantage api
+        Creates a live data feed from iex or alpha vantage api
+        :param symbol:
         :return:
         """
-        data = self.my_alpha_vantage.get_intraday(symbol, clip_date_from=self.clip_date_from)
+        if self.data_feed_source == "iex":
+            data = self.my_idex.get_historical_intraday(symbol)
+            previous_data = self.my_td_ameritrade.get_historical_data_DF(symbol)
+            data = pd.concat([previous_data, data])
 
+        elif self.data_feed_source == "alpha_vantage":
+            data = self.my_alpha_vantage.get_intraday(symbol, clip_date_from=self.clip_date_from)
+        else:
+            raise Exception("Data Feed Source Not Valid")
         data = data.resample(self.resample_amt).first()
-        print(symbol, data)
-
         return data
 
     def create_historical_data_feed(self, symbol):
@@ -147,7 +153,7 @@ if __name__ == '__main__':
 
     my_back_trader = BackTrader(SMAStrategy)
     # all_symbols = my_back_trader.my_idex.supported_symbols
-    my_back_trader.run_strategy_multiple_symbols(symbol_list=all_symbols, run_all_symbols=False)
-    # my_back_trader.show_plot = True
-    # my_back_trader.run_strategy(symbol="SONN")
+    # my_back_trader.run_strategy_multiple_symbols(symbol_list=all_symbols, run_all_symbols=False)
+    my_back_trader.live_trading = True
+    my_back_trader.run_strategy(symbol="SONN")
     my_back_trader.write_results_to_json("../Data/strategy_results.json")

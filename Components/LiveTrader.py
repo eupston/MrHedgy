@@ -34,7 +34,7 @@ class LiveTrader:
         self.cash_limit = 100
         self.stock_order_times_bought = []
         self.stock_order_times_sold = []
-        self.query_market_seconds = 300
+        self.query_market_seconds = 2
 
     def run_strategy_on_live_market(self):
         """
@@ -42,14 +42,15 @@ class LiveTrader:
         :return:
         """
         # stock_gappers = self.get_premarket_stock_gappers(watch_list_name="2020-08-12")
-        stock_gappers =['XSPA', 'IBIO', 'RIOT', 'IPDN', 'SQ']
+        stock_gappers =['HTBX', 'NTN', 'IGC', 'FAT', 'SNDL']
+        stock_gappers =['HTBX']
         logger.info(stock_gappers)
         cycle_count = 0
         now = dt.now()
         while True:
             try:
                 my_back_trader = BackTrader(self.strategy, self.buy_callback, self.sell_callback, live_trading=True)
-                my_back_trader.use_live_intraday_data = True
+                my_back_trader.live_trading = True
                 my_back_trader.run_strategy_multiple_symbols(symbol_list=stock_gappers)
                 my_back_trader.write_results_to_json(f"../Data/{str(now.date())}.json")
             except Exception as e:

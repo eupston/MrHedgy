@@ -206,6 +206,7 @@ class SMAStrategy(bt.Strategy):
                 # Keep track of the created order to avoid a 2nd order
                 self.order = self.sell(size=current_position_size)
         if not self.live_trading:
+            #TODO add time logic
             i = list(range(0, len(self.datas)))
             for (d, j) in zip(self.datas, i):
                 if len(d) == (d.buflen()-1):
