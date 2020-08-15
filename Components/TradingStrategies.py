@@ -72,7 +72,7 @@ class TradingStrategies:
         except Exception as e:
             return {"symbol": symbol, "transaction_data": {str(datetime.now(tz)): str(e)} }
 
-
+#TODO input minute data as well and well based off that
 class SMAStrategy(bt.Strategy):
     params = (
         ('symbol', None ),

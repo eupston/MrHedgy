@@ -10,7 +10,7 @@ from Components.APIs.IEX import IEX
 from Components.APIs.TDAmeritrade import TDAmeritrade
 from Components.BackTrader import BackTrader
 from Components.TradingStrategies import SMAStrategy
-
+from Components.StockScreener import StockSceener
 import logging
 import sys
 
@@ -30,6 +30,7 @@ class LiveTrader:
     def __init__(self, strategy):
         self.td_ameritrade = TDAmeritrade()
         self.iex = IEX()
+        self.stock_screener = StockSceener()
         self.strategy = strategy
         self.cash_limit = 100
         self.stock_order_times_bought = []
@@ -41,9 +42,9 @@ class LiveTrader:
         Run the loaded strategy on all the stock market gappers
         :return:
         """
-        # stock_gappers = self.get_premarket_stock_gappers(watch_list_name="2020-08-12")
-        stock_gappers =['HTBX', 'NTN', 'IGC', 'FAT', 'SNDL']
-        stock_gappers =['HTBX']
+        stock_gappers = self.get_premarket_stock_gappers(watch_list_name="2020-08-14")
+        # stock_gappers =['HTBX', 'NTN', 'IGC', 'FAT', 'SNDL']
+        # stock_gappers = self.stock_screener.get_top_gainers()
         logger.info(stock_gappers)
         cycle_count = 0
         now = dt.now()
@@ -75,10 +76,10 @@ class LiveTrader:
         transaction_data.setdefault(symbol, {})
         stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0).replace(tzinfo=None)
         order_datetime_obj = dt.strptime(order_datetime, '%Y-%m-%d %H:%M:%S')
-        if order_datetime_obj > stock_market_opening_time and order_datetime not in transaction_data[symbol].keys():
+        if order_datetime_obj > stock_market_opening_time and order_datetime not in transaction_data[symbol].keys() and self.is_stock_market_open():
             quote = self.td_ameritrade.get_stock_quote(symbol)
             ask_price = quote["askPrice"]
-            logger.info(f"BUY CALLBACK: Order Place for {symbol} order datetime is {order_datetime} for ${ask_price}")
+            logger.info(f"BUY CALLBACK: Order Place for {symbol} order datetime is order_datetime_obj={order_datetime_obj} & stock_market_opening_time={stock_market_opening_time} for ${ask_price}")
             transaction_data[symbol][order_datetime] = {
                 "transaction_type": "Bought",
                 "price": ask_price,
@@ -93,6 +94,7 @@ class LiveTrader:
         The sell callback to for loaded strategy
         :return:
         """
+        #TODO fix bug where if it'll sell even if no stocks have been bought yet
         tz = timezone('EST')
         now = dt.now(tz)
         transaction_json_path = f"../Data/transaction_data_{str(now.date())}.json"
@@ -105,8 +107,7 @@ class LiveTrader:
 
         stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0).replace(tzinfo=None)
         order_datetime_obj = dt.strptime(order_datetime, '%Y-%m-%d %H:%M:%S')
-        if order_datetime_obj > stock_market_opening_time.replace(tzinfo=None) and order_datetime not in transaction_data[symbol].keys():
-
+        if order_datetime_obj > stock_market_opening_time.replace(tzinfo=None) and order_datetime not in transaction_data[symbol].keys() and self.is_stock_market_open():
             quote = self.td_ameritrade.get_stock_quote(symbol)
             bid_price = quote["bidPrice"]
             logger.info(f"SELL CALLBACK: Order Place for {symbol} order datetime is {order_datetime} for ${bid_price}")
@@ -118,6 +119,31 @@ class LiveTrader:
             }
             with open(transaction_json_path, 'w') as f:
                 f.write(json.dumps(transaction_data, indent=4))
+
+    def is_stock_market_open(self, include_after_hours=False):
+        """
+        Checks to if the stock market is currently open
+        :param include_after_hours:
+        :return: True or False
+        """
+        tz = timezone('EST')
+        now = dt.now(tz)
+        current_time = now.replace(microsecond=0).replace(tzinfo=None)
+        stock_market_opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0).replace(tzinfo=None)
+        open_weekday_list = [0, 1, 2, 3, 4]
+        current_weekday = stock_market_opening_time.weekday()
+        if include_after_hours:
+            opening_time = now.replace(hour=4, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+            closing_time = now.replace(hour=20, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+        else:
+            opening_time = now.replace(hour=8, minute=29, second=0, microsecond=0).replace(tzinfo=None)
+            closing_time = now.replace(hour=4, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+        if current_weekday in open_weekday_list and opening_time < current_time and current_time < closing_time:
+            return True
+        else:
+            return False
+
+
 
     def get_premarket_stock_gappers(self, watch_list_name=None):
         """

@@ -2,7 +2,7 @@ import sys
 import re
 from Components.APIs.Outlook import Outlook
 from Components.APIs.TDAmeritrade import TDAmeritrade
-from Components.Threading import Worker
+from Components.Utils.Threading import Worker
 from dotenv import load_dotenv, find_dotenv
 import time
 import json

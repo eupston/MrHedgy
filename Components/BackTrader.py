@@ -18,7 +18,6 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-#TODO add option for iex or alpha vantage realtime data
 class BackTrader:
     """Class for Back testing Strategies"""
     def __init__(self, strategy, buy_callback=None, sell_callback=None, live_trading=False):
