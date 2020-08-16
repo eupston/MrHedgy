@@ -7,8 +7,9 @@ from Components.TradingStrategies import *
 import datetime
 import logging
 import sys
+import os
 
-logging.basicConfig(filename=f"../logs/{__name__}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
+logging.basicConfig(filename=f"../logs/{os.path.splitext(os.path.basename(__file__))[0]}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,8 @@ class BackTrader:
         today = datetime.datetime.utcnow().date()
         three_days_ago = today - datetime.timedelta(days=3)
         self.clip_date_from = str(three_days_ago)
-        self.look_back_days = 60
-        self.minute_frequency = 15
+        self.look_back_days = 2
+        self.minute_frequency = 1
         self.show_plot = False
         self.data_feed_source = "iex"
         self.strategy_results = None
@@ -60,13 +61,17 @@ class BackTrader:
             # Create a Data Feed
             if self.live_trading:
                 market_data = self.create_live_data_feed(symbol)
+                resample_market_data = market_data.resample(self.resample_amt).first()
             else:
                 market_data = self.create_historical_data_feed(symbol)
-            logger.info(market_data)
-            data = bt.feeds.PandasData(dataname=market_data)
+                resample_market_data = market_data.resample(self.resample_amt).first()
+            logger.info(resample_market_data)
+            data0 = bt.feeds.PandasData(dataname=resample_market_data)
+            data1 = bt.feeds.PandasData(dataname=market_data)
 
             # Add the Data Feed to Cerebro
-            cerebro.adddata(data)
+            cerebro.adddata(data0)
+            cerebro.adddata(data1)
 
             # Set our desired cash start
             cerebro.broker.setcash(self.cash_amount)
@@ -117,21 +122,22 @@ class BackTrader:
         if self.data_feed_source == "iex":
             data = self.my_idex.get_historical_intraday(symbol)
             previous_data = self.my_td_ameritrade.get_historical_data_DF(symbol)
+            previous_data = previous_data.fillna(method='ffill')
             data = pd.concat([previous_data, data])
 
         elif self.data_feed_source == "alpha_vantage":
             data = self.my_alpha_vantage.get_intraday(symbol, clip_date_from=self.clip_date_from)
         else:
             raise Exception("Data Feed Source Not Valid")
-        data = data.resample(self.resample_amt).first()
         return data
 
     def create_historical_data_feed(self, symbol):
         """
-        Create the historical data feed for the given symbol from  td ameritrade data
+        Create the historical data feed for the given symbol from TD Ameritrade data
         :return:
         """
         data = self.my_td_ameritrade.get_historical_data_DF(symbol, minute_frequency=self.minute_frequency, look_back_days=self.look_back_days)
+        data = data.fillna(method='ffill')
         return data
 
     def write_results_to_json(self, json_path):
@@ -148,11 +154,12 @@ if __name__ == '__main__':
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 150)
     all_symbols = ['SQ', "AAPL", "SPY", "GOOG", "TSLA", "FB", "MSFT", "SONN", 'MARA', 'AVCT']
-    all_symbols = ['RMED', 'SNSS', 'PECK', 'PEIX', 'FBIO']
+    # all_symbols = ['RMED', 'SNSS', 'PECK', 'PEIX', 'FBIO']
 
     my_back_trader = BackTrader(SMAStrategy)
-    # all_symbols = my_back_trader.my_idex.supported_symbols
     # my_back_trader.run_strategy_multiple_symbols(symbol_list=all_symbols, run_all_symbols=False)
-    my_back_trader.live_trading = True
-    my_back_trader.run_strategy(symbol="SONN")
+    # my_back_trader.live_trading = True
+    # my_back_trader.show_plot = True
+
+    my_back_trader.run_strategy(symbol="MARA")
     my_back_trader.write_results_to_json("../Data/strategy_results.json")

@@ -9,8 +9,9 @@ import math
 from pytz import timezone
 import logging
 import sys
+import os
 
-logging.basicConfig(filename=f"../logs/{__name__}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
+logging.basicConfig(filename=f"../logs/{os.path.splitext(os.path.basename(__file__))[0]}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,6 @@ class TradingStrategies:
         except Exception as e:
             return {"symbol": symbol, "transaction_data": {str(datetime.now(tz)): str(e)} }
 
-#TODO input minute data as well and well based off that
 class SMAStrategy(bt.Strategy):
     params = (
         ('symbol', None ),
@@ -80,12 +80,6 @@ class SMAStrategy(bt.Strategy):
         ('sell_callback', None),
         ('live_trading', False),
     )
-
-    def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
-        dt = dt or self.datas[0].datetime.date(0)
-        time = self.datas[0].datetime.time()
-        print('%s %s, %s %s' % (self.symbol, dt.isoformat(), time, txt))
 
     def __init__(self):
         """
@@ -116,6 +110,15 @@ class SMAStrategy(bt.Strategy):
         self.momentum_loss_threshold_percent = 0.02
         self.momentum_percentage_peak = 0
 
+    def log(self, txt, dt=None, second_data=False):
+        ''' Logging function fot this strategy'''
+        if second_data:
+            time = self.datas[1].datetime.time()
+        else:
+            time = self.datas[0].datetime.time()
+        dt = dt or self.datas[0].datetime.date(0)
+        print('%s %s, %s %s' % (self.symbol, dt.isoformat(), time, txt))
+
     def notify_order(self, order):
         dt = self.datas[0].datetime.date(0)
         time = self.datas[0].datetime.time()
@@ -143,7 +146,8 @@ class SMAStrategy(bt.Strategy):
                 self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
                          (order.executed.price,
                           order.executed.value,
-                          order.executed.comm))
+                          order.executed.comm),
+                          second_data=True)
                 if self.sell_callback:
                     self.sell_callback(self.symbol, date_time)
 
@@ -174,7 +178,7 @@ class SMAStrategy(bt.Strategy):
         sell_stock_signal_two = False
         if self.bought_stock_price:
             # calculate percentage increase
-            new_stock_price = self.dataclose[0]
+            new_stock_price = self.datas[0].close
             self.current_percent_increase = ((new_stock_price - self.bought_stock_price) / self.bought_stock_price) * 100
             if self.current_percent_increase > self.momentum_percentage_peak:
                 self.momentum_percentage_peak = self.current_percent_increase
@@ -197,7 +201,7 @@ class SMAStrategy(bt.Strategy):
         else:
             if sell_stock_signal_two:
                 # SELL, SELL, SELL!!! (with all possible default parameters)
-                self.log('SELL CREATE, %.2f' % self.dataclose[0])
+                self.log('SELL CREATE, %.2f' % self.datas[0][0])
                 # Keep track of the created order to avoid a 2nd order
                 self.order = self.sell(size=current_position_size)
             elif sell_stock_signal:

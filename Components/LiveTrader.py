@@ -14,7 +14,7 @@ from Components.StockScreener import StockSceener
 import logging
 import sys
 
-logging.basicConfig(filename=f"../logs/{__name__}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
+logging.basicConfig(filename=f"../logs/{os.path.splitext(os.path.basename(__file__))[0]}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 

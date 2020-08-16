@@ -9,8 +9,21 @@ import requests
 from dotenv import load_dotenv,find_dotenv
 import pandas as pd
 from datetime import timedelta, datetime
+import logging
+import sys
 
 load_dotenv(find_dotenv())
+
+logging.basicConfig(filename=f"../../logs/{os.path.splitext(os.path.basename(__file__))[0]}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 #TODO Create decorator for client session
 class TDAmeritrade:
@@ -240,6 +253,8 @@ class TDAmeritrade:
         df.set_index("date", inplace=True, drop=True)
         return df
 
+
+
     def execute_transaction_from_dict(self, transaction_dict, percent_range_execute_limit, buy_cash_limit):
         """
         Executes all transactions with the given dictionary Buy or Sell
@@ -292,7 +307,7 @@ if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
 
     my_tdameritrade = TDAmeritrade()
-    data = my_tdameritrade.get_historical_data_DF("AAPL", minute_frequency=1, look_back_days=30)
+    data = my_tdameritrade.get_historical_data_DF("BRLI", minute_frequency=1, look_back_days=30)
     print(data)
     # watch = my_tdameritrade.get_watch_list("default")
     # print(watch)
