@@ -15,7 +15,8 @@ from Components.APIs.IEX import IEX
 
 load_dotenv(find_dotenv())
 
-logging.basicConfig(filename=f"../../logs/{os.path.splitext(os.path.basename(__file__))[0]}.log", level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
+log_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../logs/{os.path.splitext(os.path.basename(__file__))[0]}.log"))
+logging.basicConfig(filename=log_file_path, level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
@@ -221,7 +222,7 @@ class TDAmeritrade:
         history = self.td_client.history(symbol, **kwargs)
         return history
 
-    def get_historical_data_DF(self, symbol, minute_frequency=1, look_back_days=2):
+    def get_historical_data_DF(self, symbol, minute_frequency=1, look_back_days=3):
         """
         Gets the historical dataframe of the given stock.
         Note minute data can only go back a maximum of 30 days
@@ -234,9 +235,18 @@ class TDAmeritrade:
         self.start_client_session()
         today = datetime.now()
         today_x_days_ago = today - timedelta(days=look_back_days)
-        start_date_lookback_day = str(int(round(today_x_days_ago.timestamp() * 1000)))
+        weekno = today_x_days_ago.weekday()
+        if weekno == 5:  # Saturday
+            look_back_days += 1
+            today_x_days_ago = today - timedelta(days=look_back_days + 1)
+        elif weekno == 6: # Sunday
+            today_x_days_ago = today - timedelta(days=look_back_days + 2)
 
-        kwargs = {'frequency': minute_frequency, 'startDate': start_date_lookback_day}
+        start_date_lookback_day = int(round(today_x_days_ago.timestamp() * 1000))
+
+
+
+        kwargs = {'frequency': minute_frequency, 'startDate': str(start_date_lookback_day)}
 
         response = requests.get(f"https://api.tdameritrade.com/v1/marketdata/{symbol}/pricehistory",
                              headers={'Authorization': 'Bearer ' + self.access_token},
@@ -245,7 +255,7 @@ class TDAmeritrade:
             time.sleep(1.5)
             self.get_historical_data_DF(symbol, minute_frequency, look_back_days)
         if not response.status_code == 200:
-            raise Exception("Could not get historical Data. Status Code: {}".format(response.status_code))
+            raise Exception(f"Could not get historical Data for {symbol}. Status Code: {response.status_code}")
         x = response.json()
         df = pd.DataFrame(x['candles'])
         df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
@@ -312,7 +322,7 @@ if __name__ == '__main__':
         if symbol not in symbols_processed:
             logger.info(f"Currently Processing {symbol}")
             try:
-                data = my_tdameritrade.get_historical_data_DF(symbol, minute_frequency=1, look_back_days=90)
+                data = my_tdameritrade.get_historical_data_DF(symbol, minute_frequency=1, look_back_days=2)
                 data.to_csv(os.path.join(data_output_folder, f'{symbol}.csv'))
             except Exception as e:
                 logger.exception(e)
