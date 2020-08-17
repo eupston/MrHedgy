@@ -26,6 +26,7 @@ class StockSceener:
         self.iex = IEX()
         self.td_ameritrade = TDAmeritrade()
         self.look_back_days = 0
+        self.requested_date = None
         self.top_gainers = {}
 
     def get_top_gainers(self, filter_num=20):
@@ -47,6 +48,7 @@ class StockSceener:
         :return:
         """
         all_stock_symbols = self.iex.supported_symbols
+        self.requested_date = date_str
         current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         requested_datetime_obj = datetime.strptime(date_str, '%Y-%m-%d')
         if requested_datetime_obj >= current_date:
@@ -73,6 +75,7 @@ class StockSceener:
         logger.info(f"Currently Processing {symbol}")
         try:
             data = self.td_ameritrade.get_historical_data_DF(symbol, minute_frequency=30, look_back_days=self.look_back_days)
+            # data = self.iex.get_historical_intraday(symbol, date=self.requested_date)
             data = data.fillna(method='ffill')
             opening_price = data['close'][0]
             closing_price = data['close'][-1]

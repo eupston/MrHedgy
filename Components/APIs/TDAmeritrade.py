@@ -11,6 +11,7 @@ import pandas as pd
 from datetime import timedelta, datetime
 import logging
 import sys
+from Components.APIs.IEX import IEX
 
 load_dotenv(find_dotenv())
 
@@ -246,14 +247,11 @@ class TDAmeritrade:
         if not response.status_code == 200:
             raise Exception("Could not get historical Data. Status Code: {}".format(response.status_code))
         x = response.json()
-
         df = pd.DataFrame(x['candles'])
         df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
         df = df.rename(columns={'datetime': 'date'})
         df.set_index("date", inplace=True, drop=True)
         return df
-
-
 
     def execute_transaction_from_dict(self, transaction_dict, percent_range_execute_limit, buy_cash_limit):
         """
@@ -305,10 +303,21 @@ class TDAmeritrade:
 
 if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
-
+    iex = IEX()
+    all_supported_symbols = iex.supported_symbols
     my_tdameritrade = TDAmeritrade()
-    data = my_tdameritrade.get_historical_data_DF("BRLI", minute_frequency=1, look_back_days=30)
-    print(data)
+    data_output_folder = "/Volumes/EugSSD2/Users/macuser/Desktop/MyCode/myProjects/MrHedgy/Data/Historical30Days"
+    symbols_processed = [os.path.splitext(file)[0] for file in os.listdir(data_output_folder)]
+    for symbol in all_supported_symbols:
+        if symbol not in symbols_processed:
+            logger.info(f"Currently Processing {symbol}")
+            try:
+                data = my_tdameritrade.get_historical_data_DF(symbol, minute_frequency=1, look_back_days=90)
+                data.to_csv(os.path.join(data_output_folder, f'{symbol}.csv'))
+            except Exception as e:
+                logger.exception(e)
+                time.sleep(1)
+
     # watch = my_tdameritrade.get_watch_list("default")
     # print(watch)
     # positions = my_tdameritrade.get_all_positions()
