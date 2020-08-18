@@ -35,15 +35,15 @@ class LiveTrader:
         self.cash_limit = 100
         self.stock_order_times_bought = []
         self.stock_order_times_sold = []
-        self.query_market_seconds = 2
+        self.query_market_seconds = 300
 
     def run_strategy_on_live_market(self):
         """
         Run the loaded strategy on all the stock market gappers
         :return:
         """
-        stock_gappers = self.get_premarket_stock_gappers(watch_list_name="2020-08-14")
-        # stock_gappers =['HTBX', 'NTN', 'IGC', 'FAT', 'SNDL']
+        todays_date = str(dt.date(dt.now()))
+        stock_gappers = self.get_premarket_stock_gappers(watch_list_name=todays_date)
         # stock_gappers = self.stock_screener.get_top_gainers()
         logger.info(stock_gappers)
         cycle_count = 0

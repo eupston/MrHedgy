@@ -328,8 +328,8 @@ if __name__ == '__main__':
                 logger.exception(e)
                 time.sleep(1)
 
-    # watch = my_tdameritrade.get_watch_list("default")
-    # print(watch)
+    # stock = my_tdameritrade.get_stock_quote("CCL")
+    # print(stock)
     # positions = my_tdameritrade.get_all_positions()
     # position = my_tdameritrade.get_single_position("CCL")
     # print(position)

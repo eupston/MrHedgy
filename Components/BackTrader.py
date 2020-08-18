@@ -120,6 +120,7 @@ class BackTrader:
         :return:
         """
         if self.data_feed_source == "iex":
+            #TODO get most recent business day minus 1
             data = self.my_idex.get_historical_intraday(symbol)
             previous_data = self.my_td_ameritrade.get_historical_data_DF(symbol)
             previous_data = previous_data.fillna(method='ffill')
